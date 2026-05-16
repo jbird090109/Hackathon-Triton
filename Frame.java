@@ -48,8 +48,7 @@ public class Frame extends JPanel implements ActionListener, MouseListener, KeyL
 	/* paint the objects */
 	public void paint(Graphics g) {
 		super.paintComponent(g);
-		
-		
+		g.drawRect(100, 100, 200, 200);
 		
 	}
 	
@@ -59,14 +58,14 @@ public class Frame extends JPanel implements ActionListener, MouseListener, KeyL
 	}
 	
 	public Frame() {
-		JFrame f = new JFrame("Ghost Hunter");
+		JFrame f = new JFrame("chatgpt i think");
 		f.setSize(new Dimension(width, height));
-		f.setBackground(Color.white);
+		f.setBackground(Color.black);
 		f.add(this);
 		f.setResizable(false);
  		f.addMouseListener(this);
 		f.addKeyListener(this);
-	
+
 		//backgroundMusic.play();
 
 		//The constructor for Frame should init the objects before
@@ -133,8 +132,12 @@ public class Frame extends JPanel implements ActionListener, MouseListener, KeyL
 
 	@Override
 	public void actionPerformed(ActionEvent arg0) {
-		// TODO Auto-generated method stub
+		if (arg0.getSource() instanceof Timer) {
+			
+
+
 		repaint();
+		}
 	}
 
 	@Override
