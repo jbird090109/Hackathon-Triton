@@ -1,250 +1,164 @@
-import { useState } from "react";
+import { useState, useEffect } from 'react';
+import WelcomeScreen from './components/WelcomeScreen';
+import GameSelection from './components/GameSelection';
+import WaitingScreen from './components/WaitingScreen';
+import GameRoom from './components/GameRoom';
+import JudgeView from './components/JudgeView';
+import ResultsScreen from './components/ResultsScreen';
+import socketService from './services/socketService';
+import './App.css';
 
 function App() {
-  const [players, setPlayers] = useState(["", "", ""]);
-  const [category, setCategory] = useState("Trivia");
-  const [match, setMatch] = useState(null);
-  const [winner, setWinner] = useState("");
+  const [appState, setAppState] = useState('welcome');
+  const [playerName, setPlayerName] = useState('');
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [isJudge, setIsJudge] = useState(false);
+  const [matchData, setMatchData] = useState(null);
+  const [gameResult, setGameResult] = useState(null);
 
-  const challenges = {
-    Trivia: [
-      "Answer 3 general knowledge questions. Most correct wins.",
-      "Name as many countries as you can in 30 seconds.",
-      "Guess the movie from one quote.",
-    ],
-    Physical: [
-      "Do the most jumping jacks in 20 seconds.",
-      "Hold a plank longer than your opponent.",
-      "Balance on one foot the longest.",
-    ],
-    "Video Games": [
-      "Win a 1v1 mini-game round.",
-      "Get the highest score in one attempt.",
-      "Complete a level faster than your opponent.",
-    ],
-    Acting: [
-      "Act out a movie scene. Judge picks the better performance.",
-      "Do your best celebrity impression.",
-      "Improvise a dramatic scene using a random object.",
-    ],
-  };
+  // Initialize socket connection on mount
+  useEffect(() => {
+    socketService.connect();
 
-  const updatePlayer = (index, value) => {
-    const newPlayers = [...players];
-    newPlayers[index] = value;
-    setPlayers(newPlayers);
-  };
-
-  const startChallenge = () => {
-    if (players.some((p) => p.trim() === "")) {
-      alert("Please enter all 3 player names.");
-      return;
-    }
-
-    const shuffled = [...players].sort(() => Math.random() - 0.5);
-
-    const randomChallenge =
-      challenges[category][
-        Math.floor(Math.random() * challenges[category].length)
-      ];
-
-    setMatch({
-      competitor1: shuffled[0],
-      competitor2: shuffled[1],
-      judge: shuffled[2],
-      challenge: randomChallenge,
-      roomName: `challenge-room-${Date.now()}`,
+    // Listen for match found events
+    socketService.on('match-found', (data) => {
+      console.log('Match found:', data);
+      setMatchData(data);
+      setAppState('game-room');
     });
 
-    setWinner("");
+    // Listen for game results
+    socketService.on('game-ended', (result) => {
+      console.log('Game ended:', result);
+      setGameResult(result);
+      setAppState('results');
+    });
+
+    // Listen for judge match found
+    socketService.on('judge-match-found', (data) => {
+      console.log('Judge match found:', data);
+      setMatchData(data);
+      setAppState('judge-view');
+    });
+
+    return () => {
+      socketService.disconnect();
+    };
+  }, []);
+
+  // Handle Welcome Screen - Player enters name
+  const handleWelcomeStart = (name) => {
+    setPlayerName(name);
+    setAppState('game-selection');
   };
 
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#0f172a",
-        color: "white",
-        padding: "40px",
-        fontFamily: "Arial",
-      }}
-    >
-      <h1
-        style={{
-          fontSize: "48px",
-          textAlign: "center",
-          marginBottom: "10px",
-        }}
-      >
-        Challenge Connect
-      </h1>
+  // Handle Game Selection - Player chooses game and judge status
+  const handleGameSelect = ({ gameId, gameName, isJudge: judgeStatus }) => {
+    setSelectedGame({ gameId, gameName });
+    setIsJudge(judgeStatus);
+    setAppState('waiting');
 
-      <p
-        style={{
-          color: "#94a3b8",
-          textAlign: "center",
-          fontSize: "18px",
-          maxWidth: "700px",
-          margin: "0 auto",
-        }}
-      >
-        Randomly connect people online for live challenges with two competitors
-        and one judge.
-      </p>
+    // Join the matchmaking queue
+    socketService.joinQueue(playerName, gameId, judgeStatus);
+  };
 
-      <div
-        style={{
-          width: "380px",
-          margin: "40px auto",
-          display: "flex",
-          flexDirection: "column",
-          gap: "12px",
-        }}
-      >
-        <input
-          type="text"
-          placeholder="Person 1 username"
-          value={players[0]}
-          onChange={(e) => updatePlayer(0, e.target.value)}
-          style={inputStyle}
-        />
+  // Handle Back from Game Selection
+  const handleBackFromSelection = () => {
+    setAppState('welcome');
+  };
 
-        <input
-          type="text"
-          placeholder="Person 2 username"
-          value={players[1]}
-          onChange={(e) => updatePlayer(1, e.target.value)}
-          style={inputStyle}
-        />
+  // Handle Cancel Matchmaking
+  const handleCancelMatchmaking = () => {
+    socketService.leaveQueue();
+    setAppState('game-selection');
+  };
 
-        <input
-          type="text"
-          placeholder="Person 3 username"
-          value={players[2]}
-          onChange={(e) => updatePlayer(2, e.target.value)}
-          style={inputStyle}
-        />
+  // Handle Game End
+  const handleGameEnd = () => {
+    socketService.leaveQueue();
+    setAppState('welcome');
+    setPlayerName('');
+    setSelectedGame(null);
+    setMatchData(null);
+  };
 
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          style={inputStyle}
-        >
-          <option>Trivia</option>
-          <option>Physical</option>
-          <option>Video Games</option>
-          <option>Acting</option>
-        </select>
+  // Handle Judge Vote
+  const handleJudgeVote = (voteData) => {
+    socketService.sendJudgeVote(voteData);
+  };
 
-        <button onClick={startChallenge} style={primaryButtonStyle}>
-          Find Random Challenge Match
-        </button>
-      </div>
+  // Handle Play Again
+  const handlePlayAgain = () => {
+    setAppState('game-selection');
+    setGameResult(null);
+    setMatchData(null);
+  };
 
-      {match && (
-        <div
-          style={{
-            backgroundColor: "#1e293b",
-            width: "560px",
-            margin: "0 auto",
-            padding: "26px",
-            borderRadius: "16px",
-            textAlign: "center",
-            boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
-          }}
-        >
-          <h2>{category} Challenge Match</h2>
+  // Render based on app state
+  const renderState = () => {
+    switch (appState) {
+      case 'welcome':
+        return <WelcomeScreen onStart={handleWelcomeStart} />;
 
-          <p>
-            <strong>Competitor 1:</strong> {match.competitor1}
-          </p>
+      case 'game-selection':
+        return (
+          <GameSelection
+            playerName={playerName}
+            onGameSelect={handleGameSelect}
+            onBack={handleBackFromSelection}
+          />
+        );
 
-          <p>
-            <strong>Competitor 2:</strong> {match.competitor2}
-          </p>
+      case 'waiting':
+        return (
+          <WaitingScreen
+            gameName={selectedGame?.gameName}
+            isJudge={isJudge}
+            onMatchFound={() => {}}
+            onCancel={handleCancelMatchmaking}
+          />
+        );
 
-          <p>
-            <strong>Judge:</strong> {match.judge}
-          </p>
+      case 'game-room':
+        return matchData ? (
+          <GameRoom
+            playerName={playerName}
+            opponentName={matchData.opponentName}
+            gameName={matchData.gameName}
+            gameId={matchData.gameId}
+            onGameEnd={handleGameEnd}
+          />
+        ) : null;
 
-          <h3 style={{ marginTop: "24px" }}>Challenge</h3>
+      case 'judge-view':
+        return matchData ? (
+          <JudgeView
+            gameName={matchData.gameName}
+            player1Name={matchData.player1Name}
+            player2Name={matchData.player2Name}
+            onVoteSubmitted={handleJudgeVote}
+            onLeaveGame={handleGameEnd}
+          />
+        ) : null;
 
-          <p style={{ color: "#cbd5e1", fontSize: "17px" }}>
-            {match.challenge}
-          </p>
+      case 'results':
+        return gameResult ? (
+          <ResultsScreen
+            winner={gameResult.winner}
+            loser={gameResult.loser}
+            gameName={gameResult.gameName}
+            judgeVote={gameResult.judgeVote}
+            onPlayAgain={handlePlayAgain}
+            onExit={handleGameEnd}
+          />
+        ) : null;
 
-          <a
-            href={`https://meet.jit.si/${match.roomName}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            <button style={videoButtonStyle}>Join Video Room</button>
-          </a>
+      default:
+        return <WelcomeScreen onStart={handleWelcomeStart} />;
+    }
+  };
 
-          <h3 style={{ marginTop: "24px" }}>Judge Picks Winner</h3>
-
-          <button
-            onClick={() => setWinner(match.competitor1)}
-            style={winnerButtonStyle}
-          >
-            {match.competitor1}
-          </button>
-
-          <button
-            onClick={() => setWinner(match.competitor2)}
-            style={winnerButtonStyle}
-          >
-            {match.competitor2}
-          </button>
-
-          {winner && (
-            <h2 style={{ marginTop: "22px", color: "#22c55e" }}>
-              Winner: {winner}
-            </h2>
-          )}
-        </div>
-      )}
-    </div>
-  );
+  return <div className="app">{renderState()}</div>;
 }
-
-const inputStyle = {
-  padding: "14px",
-  borderRadius: "8px",
-  border: "none",
-  fontSize: "16px",
-};
-
-const primaryButtonStyle = {
-  padding: "14px",
-  borderRadius: "8px",
-  border: "none",
-  backgroundColor: "#2563eb",
-  color: "white",
-  cursor: "pointer",
-  fontWeight: "bold",
-  fontSize: "16px",
-};
-
-const videoButtonStyle = {
-  padding: "13px 20px",
-  borderRadius: "8px",
-  border: "none",
-  backgroundColor: "#16a34a",
-  color: "white",
-  cursor: "pointer",
-  fontWeight: "bold",
-  fontSize: "16px",
-  marginTop: "12px",
-};
-
-const winnerButtonStyle = {
-  padding: "11px 16px",
-  margin: "8px",
-  borderRadius: "8px",
-  border: "none",
-  cursor: "pointer",
-  fontWeight: "bold",
-};
 
 export default App;
