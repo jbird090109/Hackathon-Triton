@@ -1,0 +1,127 @@
+.waiting-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.waiting-box {
+  background: white;
+  border-radius: 20px;
+  padding: 60px 40px;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  animation: slideUp 0.6s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.waiting-animation {
+  margin-bottom: 40px;
+}
+
+.spinner {
+  width: 80px;
+  height: 80px;
+  border: 5px solid #f0f0f0;
+  border-top: 5px solid #667eea;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.waiting-box h2 {
+  color: #333;
+  font-size: 1.6em;
+  margin: 0 0 15px 0;
+  min-height: 40px;
+}
+
+.game-name {
+  color: #667eea;
+  font-size: 1.2em;
+  font-weight: 600;
+  margin: 0 0 30px 0;
+}
+
+.wait-info {
+  background: #f8f9ff;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border-left: 4px solid #667eea;
+}
+
+.wait-info p {
+  margin: 10px 0;
+  color: #555;
+  font-weight: 500;
+}
+
+.tips {
+  text-align: left;
+  background: #fffef0;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 30px;
+  border-left: 4px solid #f39c12;
+}
+
+.tips h3 {
+  margin: 0 0 15px 0;
+  color: #333;
+}
+
+.tips ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tips li {
+  padding: 8px 0;
+  color: #555;
+  font-size: 0.95em;
+}
+
+.cancel-button {
+  width: 100%;
+  padding: 12px;
+  font-size: 1em;
+  background: #e74c3c;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.cancel-button:hover {
+  background: #c0392b;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+}

@@ -1,0 +1,198 @@
+.game-selection-container {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 30px 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.game-selection-header {
+  max-width: 1200px;
+  margin: 0 auto 40px;
+  position: relative;
+}
+
+.back-button {
+  background: rgba(255, 255, 255, 0.2);
+  border: 2px solid white;
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1em;
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
+}
+
+.back-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.game-selection-header h2 {
+  color: white;
+  margin: 0 0 5px 0;
+  font-size: 2.5em;
+}
+
+.player-name {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-weight: bold;
+}
+
+.game-selection-header p {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1.1em;
+  margin: 10px 0 0 0;
+}
+
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto 40px;
+}
+
+.game-card {
+  background: white;
+  border-radius: 15px;
+  padding: 30px 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  border: 3px solid transparent;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.game-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.game-card.selected {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8f0ff 100%);
+  transform: scale(1.05);
+}
+
+.game-icon {
+  font-size: 3em;
+  margin-bottom: 15px;
+}
+
+.game-card h3 {
+  margin: 15px 0 10px;
+  color: #333;
+  font-size: 1.3em;
+}
+
+.game-card p {
+  color: #666;
+  font-size: 0.95em;
+  margin: 0;
+}
+
+.join-hint {
+  margin-top: 12px;
+  color: #444;
+  font-size: 0.9em;
+  font-weight: 600;
+}
+
+.judge-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #ffd89b 0%, #19547b 100%);
+  color: white;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.8em;
+  margin-top: 10px;
+}
+
+.game-selection-footer {
+  background: white;
+  border-radius: 15px;
+  padding: 30px;
+  max-width: 600px;
+  margin: 0 auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.judge-option {
+  margin-bottom: 30px;
+  padding-bottom: 20px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.judge-option label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 1.1em;
+  color: #333;
+}
+
+.judge-option input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  margin-right: 12px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
+.judge-option input[type='checkbox']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.checkbox-label {
+  font-weight: 600;
+}
+
+.judge-info {
+  background: #e8f4f8;
+  border-left: 4px solid #3498db;
+  padding: 15px;
+  margin-top: 15px;
+  border-radius: 5px;
+  color: #2c3e50;
+  font-size: 0.95em;
+}
+
+.selection-buttons {
+  display: flex;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.cancel-button,
+.confirm-button {
+  flex: 1;
+  padding: 12px 20px;
+  font-size: 1em;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.cancel-button {
+  background: #ecf0f1;
+  color: #333;
+}
+
+.cancel-button:hover {
+  background: #d5dbdb;
+}
+
+.confirm-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.confirm-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+}
