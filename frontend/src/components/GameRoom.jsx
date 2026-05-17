@@ -67,9 +67,20 @@ export default function GameRoom({
   pc.ontrack = (event) => {
     console.log("🎥 TRACK EVENT FIRED");
     console.log("🎥 Streams:", event.streams);
-    if (remoteVideoRef.current && event.streams?.[0]) {
-      remoteVideoRef.current.srcObject = event.streams[0];
-      setRemoteCameraActive(true);
+
+    const stream = event.streams?.[0];
+    if (remoteVideoRef.current && stream) {
+      setTimeout(() => {
+        if (!remoteVideoRef.current) return;
+
+        remoteVideoRef.current.srcObject = stream;
+        setRemoteCameraActive(true);
+
+        remoteVideoRef.current
+          .play()
+          .then(() => console.log("▶️ remote video playing"))
+          .catch((e) => console.log("❌ play blocked:", e));
+      }, 0);
     }
   };
 
