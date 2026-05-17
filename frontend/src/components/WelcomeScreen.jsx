@@ -27,7 +27,7 @@ export default function WelcomeScreen({ onStart }) {
     <div className="welcome-container">
       <div className="welcome-box">
         <div className="welcome-header">
-          <h1>🎮 Game Arena</h1>
+          <h1>ChallengeLink</h1>
           <p>Challenge someone in real-time</p>
         </div>
 
@@ -53,10 +53,10 @@ export default function WelcomeScreen({ onStart }) {
         <div className="welcome-info">
           <h3>How it works:</h3>
           <ul>
-            <li>📝 Enter your name</li>
-            <li>🎯 Choose a game category</li>
-            <li>👥 Get matched with another player</li>
-            <li>🎮 Play and compete</li>
+            <li>Enter your name</li>
+            <li>Choose a game category</li>
+            <li>Get matched with another player</li>
+            <li>Play and compete</li>
           </ul>
         </div>
       </div>
