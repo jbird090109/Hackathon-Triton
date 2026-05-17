@@ -83,7 +83,7 @@ export default function PhysicalGame({ matchId, playerName, opponentName }) {
       ) : finished ? (
         <div className="challenge-finished-panel">
           <h4>🎉 Challenge complete!</h4>
-          <p>Great work — waiting for judge review.</p>
+          <p>Great work — results will be processed shortly.</p>
         </div>
       ) : status === 'waiting' ? (
         <div className="challenge-waiting-panel">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import '../styles/WaitingScreen.css';
 
-export default function WaitingScreen({ gameName, isJudge, onMatchFound, onCancel }) {
+export default function WaitingScreen({ gameName, onMatchFound, onCancel }) {
   const [dots, setDots] = useState('');
   const [waitTime, setWaitTime] = useState(0);
 
@@ -36,7 +36,7 @@ export default function WaitingScreen({ gameName, isJudge, onMatchFound, onCance
           <div className="spinner"></div>
         </div>
 
-        <h2>Searching for {isJudge ? 'a match to judge' : 'an opponent'}{dots}</h2>
+        <h2>Searching for an opponent{dots}</h2>
         <p className="game-name">{gameName}</p>
 
         <div className="wait-info">
@@ -50,7 +50,7 @@ export default function WaitingScreen({ gameName, isJudge, onMatchFound, onCance
             <li>✓ Make sure your camera works</li>
             <li>✓ Check your microphone</li>
             <li>✓ Find some space to play</li>
-            {!isJudge && <li>✓ Get ready to compete!</li>}
+            <li>✓ Get ready to compete!</li>
           </ul>
         </div>
 

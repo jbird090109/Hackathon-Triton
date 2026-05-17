@@ -25,12 +25,7 @@ const gameQueues = {
   trivia: [],
 };
 
-const judgeQueues = {
-  physical: [],
-  acting: [],
-  dance: [],
-  drawing: [],
-};
+// Judges removed: only player queues are used
 
 const activeMatches = new Map();
 const playerSockets = new Map();
@@ -175,8 +170,7 @@ function removePlayerFromQueues(socketId) {
   const player = playerSockets.get(socketId);
   if (!player) return;
 
-  const queues = player.isJudge ? judgeQueues : gameQueues;
-  const queue = queues[player.gameId];
+  const queue = gameQueues[player.gameId];
 
   if (queue) {
     const index = queue.findIndex((p) => p.socketId === socketId);
@@ -186,12 +180,12 @@ function removePlayerFromQueues(socketId) {
   playerSockets.delete(socketId);
 }
 
-function findAndMatchPlayers(gameId, isJudge = false) {
-  const queue = isJudge ? judgeQueues[gameId] : gameQueues[gameId];
+function findAndMatchPlayers(gameId) {
+  const queue = gameQueues[gameId];
 
   if (!queue) return null;
 
-  if (!isJudge && queue.length >= 2) {
+  if (queue.length >= 2) {
     const player1 = queue.shift();
     const player2 = queue.shift();
 
@@ -199,24 +193,6 @@ function findAndMatchPlayers(gameId, isJudge = false) {
       type: 'player-match',
       players: [player1, player2],
     };
-  }
-
-  if (isJudge && queue.length > 0) {
-    const judge = queue.shift();
-
-    for (const match of activeMatches.values()) {
-      if (
-        match.gameId === gameId &&
-        !match.judge &&
-        match.status === 'waiting-for-judge'
-      ) {
-        return {
-          type: 'judge-match',
-          judge,
-          match,
-        };
-      }
-    }
   }
 
   return null;
@@ -251,30 +227,24 @@ io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
 
   socket.on('join-queue', (data) => {
-    const { playerName, gameCategory, isJudge } = data;
+    const { playerName, gameCategory } = data;
 
     const playerData = {
       id: socket.id,
       name: playerName,
       socketId: socket.id,
       gameId: gameCategory,
-      isJudge,
       joinedAt: Date.now(),
     };
 
     playerSockets.set(socket.id, playerData);
 
-    if (isJudge) {
-      if (!judgeQueues[gameCategory]) judgeQueues[gameCategory] = [];
-      judgeQueues[gameCategory].push(playerData);
-    } else {
-      if (!gameQueues[gameCategory]) gameQueues[gameCategory] = [];
-      gameQueues[gameCategory].push(playerData);
-    }
+    if (!gameQueues[gameCategory]) gameQueues[gameCategory] = [];
+    gameQueues[gameCategory].push(playerData);
 
     socket.join(`queue-${gameCategory}`);
 
-    const match = findAndMatchPlayers(gameCategory, isJudge);
+    const match = findAndMatchPlayers(gameCategory);
 
     if (match && match.type === 'player-match') {
       const matchId = generateMatchId();
@@ -284,8 +254,7 @@ io.on('connection', (socket) => {
         gameId: gameCategory,
         player1: match.players[0],
         player2: match.players[1],
-        judge: null,
-        status: gameCategory === 'trivia' ? 'ready' : 'waiting-for-judge',
+        status: 'ready',
         createdAt: Date.now(),
       };
 
@@ -309,28 +278,6 @@ io.on('connection', (socket) => {
         isPlayer1: false,
       });
     }
-
-    if (match && match.type === 'judge-match') {
-      const matchData = match.match;
-      matchData.judge = match.judge;
-      matchData.status = 'ready';
-
-      io.to(match.judge.socketId).emit('judge-match-found', {
-        matchId: matchData.id,
-        gameId: gameCategory,
-        gameName: formatGameName(gameCategory),
-        player1Name: matchData.player1.name,
-        player2Name: matchData.player2.name,
-      });
-
-      io.to(matchData.player1.socketId).emit('judge-assigned', {
-        judgeName: match.judge.name,
-      });
-
-      io.to(matchData.player2.socketId).emit('judge-assigned', {
-        judgeName: match.judge.name,
-      });
-    }
   });
 
   socket.on('leave-queue', () => {
@@ -345,8 +292,7 @@ io.on('connection', (socket) => {
     console.log(`Socket ${socket.id} joined match room ${matchId}`);
 
     const clients = await io.in(matchId).allSockets();
-    const requiresJudge = match.judge || match.status === 'waiting-for-judge';
-    const requiredClients = requiresJudge ? 3 : 2;
+    const requiredClients = 2;
 
     if (clients.size >= requiredClients) {
       io.to(matchId).emit('match-ready', { matchId });
@@ -427,28 +373,7 @@ io.on('connection', (socket) => {
     io.emit('game-ended', data);
   });
 
-  socket.on('judge-vote', (vote) => {
-    const { matchId, winner, gameName } = vote;
-    const match = activeMatches.get(matchId);
-    if (!match) return;
-
-    let loserName = 'Opponent';
-    if (match.player1.name === winner) {
-      loserName = match.player2.name;
-    } else if (match.player2.name === winner) {
-      loserName = match.player1.name;
-    }
-
-    io.to(matchId).emit('game-ended', {
-      winnerName: winner,
-      loserName,
-      gameName,
-      judgeVote: `Judge chose ${winner}`,
-      matchId,
-    });
-
-    activeMatches.delete(matchId);
-  });
+  // judge-vote removed — results are delivered by players or game logic
 
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
@@ -466,7 +391,6 @@ app.get('/api/queues', (req, res) => {
   for (const [gameId, queue] of Object.entries(gameQueues)) {
     status[gameId] = {
       players: queue.length,
-      judges: judgeQueues[gameId] ? judgeQueues[gameId].length : 0,
     };
   }
 

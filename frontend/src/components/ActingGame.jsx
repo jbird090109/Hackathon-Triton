@@ -2,16 +2,31 @@ import { useEffect, useState } from 'react';
 import socketService from '../services/socketService';
 
 const ACTING_PROMPTS = [
-  'Act like a dolphin',
-  'Act like Dwayne “The Rock” Johnson',
-  'Act like a clumsy robot',
-  'Act like a pirate searching for treasure',
-  'Act like a movie trailer announcer',
-  'Act like a chef cooking a giant pizza',
-  'Act like a superhero saving the city',
-  'Act like a catwalk model on a runway',
-  'Act like a sneaky ninja',
-  'Act like a dinosaur waking up',
+'Riding a tricycle',
+'Watching a romantic comedy',
+'Doing the backstroke',
+'Running on a treadmill',
+'Flying in first class',
+'Sleeping in a hammock',
+'Cooking meat',
+'Listening to classical music',
+'Driving a go-kart',
+'Writing a letter of complaint',
+'Tobogganing down a hill',
+'Flying a drone',
+'Winning an award',
+'Gardening',
+'Sailing a boat',
+'Acting on stage',
+'Playing a cowbell',
+'Pretending to be surprised',
+'Putting on a wig',
+'Wrestling',
+'Watching YouTube',
+'Teaching a language',
+'Taking a bath',
+'Learning something new',
+'Paddle boarding'
 ];
 
 export default function ActingGame({ matchId, playerName, opponentName }) {
@@ -83,7 +98,7 @@ export default function ActingGame({ matchId, playerName, opponentName }) {
       ) : finished ? (
         <div className="challenge-finished-panel">
           <h4>🎭 Scene complete!</h4>
-          <p>Awesome performance — now wait for the judge decision.</p>
+          <p>Awesome performance — results will be processed shortly.</p>
         </div>
       ) : status === 'waiting' ? (
         <div className="challenge-waiting-panel">

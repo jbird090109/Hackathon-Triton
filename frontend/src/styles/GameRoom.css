@@ -94,6 +94,19 @@
   opacity: 0.8;
 }
 
+.friend-btn {
+  margin-top: 8px;
+  background: linear-gradient(90deg, #ffd54a 0%, #ffb74d 100%);
+  color: #1a1a1a;
+  border: none;
+  padding: 6px 10px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 0.9em;
+  cursor: default;
+  pointer-events: none;
+}
+
 .video-off-overlay {
   position: absolute;
   top: 50%;
