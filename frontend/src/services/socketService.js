@@ -83,6 +83,10 @@ class SocketService {
     this.emit('game-result', result);
   }
 
+  sendTriviaAnswer(matchId, answerIndex) {
+    this.emit('trivia-answer', { matchId, answerIndex });
+  }
+
   sendJudgeVote(vote) {
     this.emit('judge-vote', vote);
   }
