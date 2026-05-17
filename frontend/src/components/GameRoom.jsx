@@ -26,6 +26,12 @@ export default function GameRoom({
   useEffect(() => {
     if (!matchData?.matchId) return;
 
+    if (gameId === 'trivia') {
+      socketService.joinMatch(matchData.matchId);
+      setConnectionState('ready');
+      return undefined;
+    }
+
     isMountedRef.current = true;
 
     const pc = new RTCPeerConnection({
@@ -201,7 +207,7 @@ export default function GameRoom({
         localStreamRef.current.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [matchData?.matchId, matchData?.isPlayer1]);
+  }, [matchData?.matchId, matchData?.isPlayer1, gameId]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -256,46 +262,50 @@ export default function GameRoom({
         </div>
       </div>
 
-      <div className="video-grid">
-        <div className="video-container local">
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className={`video-feed ${isVideoOff ? 'video-off' : ''}`}
-          />
+      {gameId !== 'trivia' && (
+        <>
+          <div className="video-grid">
+            <div className="video-container local">
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                className={`video-feed ${isVideoOff ? 'video-off' : ''}`}
+              />
 
-          <div className="player-info">
-            <span className="player-name">You</span>
-            <span className="player-label">{playerName}</span>
+              <div className="player-info">
+                <span className="player-name">You</span>
+                <span className="player-label">{playerName}</span>
+              </div>
+
+              {isVideoOff && <div className="video-off-overlay">📷 Camera Off</div>}
+            </div>
+
+            <div className="video-container remote">
+              <video
+                ref={remoteVideoRef}
+                autoPlay
+                playsInline
+                className="video-feed"
+                style={{ background: '#000' }}
+              />
+
+              <div className="player-info">
+                <span className="player-name">Opponent</span>
+                <span className="player-label">{opponentName}</span>
+              </div>
+            </div>
           </div>
 
-          {isVideoOff && <div className="video-off-overlay">📷 Camera Off</div>}
-        </div>
-
-        <div className="video-container remote">
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className="video-feed"
-            style={{ background: '#000' }}
-          />
-
-          <div className="player-info">
-            <span className="player-name">Opponent</span>
-            <span className="player-label">{opponentName}</span>
+          <div className="connection-status">
+            <p>Connection: {connectionState}</p>
+            {(connectionState === 'new' || connectionState === 'connecting') && (
+              <p>Waiting for opponent to connect...</p>
+            )}
           </div>
-        </div>
-      </div>
-
-      <div className="connection-status">
-        <p>Connection: {connectionState}</p>
-        {(connectionState === 'new' || connectionState === 'connecting') && (
-          <p>Waiting for opponent to connect...</p>
-        )}
-      </div>
+        </>
+      )}
 
       <div className="game-display-area">
         <div className="game-content">
