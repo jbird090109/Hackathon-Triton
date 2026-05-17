@@ -16,7 +16,6 @@ export default function GameRoom({
   const pcRef = useRef(null);
   const localStreamRef = useRef(null);
   const isMountedRef = useRef(true);
-  const remoteCandidatesRef = useRef([]);
 
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
@@ -32,259 +31,241 @@ export default function GameRoom({
 
     isMountedRef.current = true;
 
-    useEffect(() => {
-      if (!matchData?.matchId) return;
+    let pc;
+    const pendingCandidates = [];
 
-      console.log('[GameRoom] Initializing connection for match', matchData.matchId, 'gameId=', gameId);
-
-      isMountedRef.current = true;
-
-      const pc = new RTCPeerConnection({
-        iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+    const setup = async () => {
+      pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" }
+        ],
       });
 
       pcRef.current = pc;
 
-      // buffer for remote candidates that arrive before pc is ready
-      remoteCandidatesRef.current = [];
+      console.log("PC CREATED");
 
       pc.ontrack = (event) => {
-        console.log('[GameRoom] ontrack', event);
+        console.log("TRACK RECEIVED");
+
         if (remoteVideoRef.current && event.streams?.[0]) {
           remoteVideoRef.current.srcObject = event.streams[0];
+
+          remoteVideoRef.current.play().catch(() => {
+            console.log("Autoplay blocked");
+          });
+
           setRemoteCameraActive(true);
         }
       };
 
       pc.oniceconnectionstatechange = () => {
-        import { useEffect, useRef, useState } from 'react';
-        import '../styles/GameRoom.css';
-        import socketService from '../services/socketService';
-        import TriviaGame from './TriviaGame';
+        console.log("ICE STATE:", pc.iceConnectionState);
+        setConnectionState(pc.iceConnectionState);
+      };
 
-        export default function GameRoom({
-          playerName,
-          opponentName,
-          gameName,
-          gameId,
-          matchData,
-          onGameEnd,
-        }) {
-          const videoRef = useRef(null);
-          const remoteVideoRef = useRef(null);
-          const pcRef = useRef(null);
-          const localStreamRef = useRef(null);
-          const isMountedRef = useRef(true);
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log("SENDING ICE");
 
-          const [isMuted, setIsMuted] = useState(false);
-          const [isVideoOff, setIsVideoOff] = useState(false);
-          const [elapsedTime, setElapsedTime] = useState(0);
-          const [gameStatus] = useState('in-progress');
-          const [connectionState, setConnectionState] = useState('new');
+          socketService.sendIceCandidate(matchData.matchId, {
+            candidate: event.candidate.candidate,
+            sdpMLineIndex: event.candidate.sdpMLineIndex,
+            sdpMid: event.candidate.sdpMid,
+          });
+        }
+      };
 
-          useEffect(() => {
-            if (!matchData?.matchId) return;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
 
-            isMountedRef.current = true;
+      localStreamRef.current = stream;
+      videoRef.current.srcObject = stream;
 
-            const pc = new RTCPeerConnection({
-              iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
-            });
+      setLocalCameraActive(true);
 
-            pcRef.current = pc;
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream);
+      });
 
-            pc.ontrack = (event) => {
-              if (remoteVideoRef.current && event.streams?.[0]) {
-                remoteVideoRef.current.srcObject = event.streams[0];
-              }
-            };
+      console.log("LOCAL STREAM READY");
 
-            pc.oniceconnectionstatechange = () => {
-              setConnectionState(pc.iceConnectionState || 'new');
-            };
+      const createOffer = async () => {
+        console.log("CREATING OFFER");
 
-            pc.onconnectionstatechange = () => {
-              setConnectionState(pc.connectionState || 'new');
-            };
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
 
-            pc.onicecandidate = (event) => {
-              if (event.candidate) {
-                socketService.sendIceCandidate(matchData.matchId, {
-                  candidate: event.candidate.candidate,
-                  sdpMLineIndex: event.candidate.sdpMLineIndex,
-                  sdpMid: event.candidate.sdpMid,
-                });
-              }
-            };
+        socketService.sendOffer(matchData.matchId, {
+          type: offer.type,
+          sdp: offer.sdp,
+        });
 
-            const startLocalStream = async () => {
-              try {
-                if (!isMountedRef.current || pc.signalingState === 'closed') return null;
+        console.log("OFFER SENT");
+      };
 
-                const stream = await navigator.mediaDevices.getUserMedia({
-                  video: true,
-                  audio: true,
-                });
+      const handleOffer = async ({ offer }) => {
+        console.log("OFFER RECEIVED");
 
-                if (!isMountedRef.current || pc.signalingState === 'closed') {
-                  stream.getTracks().forEach((track) => track.stop());
-                  return null;
-                }
+        await pc.setRemoteDescription(
+          new RTCSessionDescription({
+            type: "offer",
+            sdp: offer.sdp,
+          })
+        );
 
-                localStreamRef.current = stream;
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
 
-                if (videoRef.current) {
-                  videoRef.current.srcObject = stream;
-                }
+        socketService.sendAnswer(matchData.matchId, {
+          type: answer.type,
+          sdp: answer.sdp,
+        });
 
-                stream.getTracks().forEach((track) => {
-                  pc.addTrack(track, stream);
-                });
+        console.log("ANSWER SENT");
 
-                return stream;
-              } catch (err) {
-                console.error('Camera/Microphone error:', err);
-                return null;
-              }
-            };
+        for (const c of pendingCandidates) {
+          await pc.addIceCandidate(c);
+        }
+        pendingCandidates.length = 0;
+      };
 
-            const createOffer = async () => {
-              try {
-                if (!localStreamRef.current) {
-                  await startLocalStream();
-                }
+      const handleAnswer = async ({ answer }) => {
+        console.log("ANSWER RECEIVED");
 
-                if (pc.signalingState === 'closed') return;
+        await pc.setRemoteDescription(
+          new RTCSessionDescription({
+            type: "answer",
+            sdp: answer.sdp,
+          })
+        );
 
-                const offer = await pc.createOffer();
-                await pc.setLocalDescription(offer);
+        for (const c of pendingCandidates) {
+          await pc.addIceCandidate(c);
+        }
+        pendingCandidates.length = 0;
+      };
 
-                socketService.sendOffer(matchData.matchId, {
-                  type: offer.type,
-                  sdp: offer.sdp,
-                });
-              } catch (err) {
-                console.error('Failed to create offer:', err);
-              }
-            };
+      const handleIce = async ({ candidate }) => {
+        if (!candidate?.candidate) return;
 
-            const handleMatchReady = async () => {
-              if (matchData.isPlayer1) {
-                await createOffer();
-              }
-            };
+        const ice = new RTCIceCandidate({
+          candidate: candidate.candidate,
+          sdpMLineIndex: candidate.sdpMLineIndex,
+          sdpMid: candidate.sdpMid,
+        });
 
-            const handleOffer = async ({ offer }) => {
-              try {
-                if (!localStreamRef.current) {
-                  await startLocalStream();
-                }
+        console.log("ICE RECEIVED");
 
-                if (pc.signalingState === 'closed') return;
+        if (!pc.remoteDescription) {
+          pendingCandidates.push(ice);
+          return;
+        }
 
-                await pc.setRemoteDescription(
-                  new RTCSessionDescription({
-                    type: 'offer',
-                    sdp: offer.sdp,
-                  })
-                );
+        await pc.addIceCandidate(ice);
+      };
 
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
+      socketService.on("webrtc-offer", handleOffer);
+      socketService.on("webrtc-answer", handleAnswer);
+      socketService.on("webrtc-ice-candidate", handleIce);
 
-                socketService.sendAnswer(matchData.matchId, {
-                  type: answer.type,
-                  sdp: answer.sdp,
-                });
-              } catch (err) {
-                console.error('Failed to handle offer:', err);
-              }
-            };
+      socketService.joinMatch(matchData.matchId);
 
-            const handleAnswer = async ({ answer }) => {
-              try {
-                if (pc.signalingState === 'closed') return;
+      if (matchData.isPlayer1) {
+        setTimeout(createOffer, 1000);
+      }
+    };
 
-                await pc.setRemoteDescription(
-                  new RTCSessionDescription({
-                    type: 'answer',
-                    sdp: answer.sdp,
-                  })
-                );
-              } catch (err) {
-                console.error('Failed to handle answer:', err);
-              }
-            };
+    setup();
 
-            const handleIceCandidate = async ({ candidate }) => {
-              try {
-                if (!candidate?.candidate || pc.signalingState === 'closed') return;
+    return () => {
+      isMountedRef.current = false;
 
-                await pc.addIceCandidate(
-                  new RTCIceCandidate({
-                    candidate: candidate.candidate,
-                    sdpMLineIndex: candidate.sdpMLineIndex,
-                    sdpMid: candidate.sdpMid,
-                  })
-                );
-              } catch (err) {
-                console.error('Failed to add ICE candidate:', err);
-              }
-            };
+      if (pc) pc.close();
 
-            socketService.on('match-ready', handleMatchReady);
-            socketService.on('webrtc-offer', handleOffer);
-            socketService.on('webrtc-answer', handleAnswer);
-            socketService.on('webrtc-ice-candidate', handleIceCandidate);
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach(t => t.stop());
+      }
 
-            const setupConnection = async () => {
-              await startLocalStream();
-              socketService.joinMatch(matchData.matchId);
-            };
+      socketService.off("webrtc-offer");
+      socketService.off("webrtc-answer");
+      socketService.off("webrtc-ice-candidate");
+    };
+  }, [matchData?.matchId]);
 
-            setupConnection();
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsedTime((prev) => prev + 1);
+    }, 1000);
 
-            return () => {
-              isMountedRef.current = false;
+    return () => clearInterval(timer);
+  }, []);
 
-              socketService.off('match-ready', handleMatchReady);
-              socketService.off('webrtc-offer', handleOffer);
-              socketService.off('webrtc-answer', handleAnswer);
-              socketService.off('webrtc-ice-candidate', handleIceCandidate);
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
-              if (pc.signalingState !== 'closed') {
-                pc.close();
-              }
+  const toggleMute = () => {
+    const newMuted = !isMuted;
+    setIsMuted(newMuted);
 
-              if (localStreamRef.current) {
-                localStreamRef.current.getTracks().forEach((track) => track.stop());
-              }
-            };
-          }, [matchData?.matchId, matchData?.isPlayer1]);
-        <button
-          onClick={toggleMute}
-          className={`control-btn ${isMuted ? 'active' : ''}`}
-          title={isMuted ? 'Unmute' : 'Mute'}
-        >
-          {isMuted ? '🔇' : '🔊'}
-        </button>
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(track => {
+        track.enabled = !newMuted;
+      });
+    }
+  };
 
-        <button
-          onClick={toggleVideo}
-          className={`control-btn ${isVideoOff ? 'active' : ''}`}
-          title={isVideoOff ? 'Turn on camera' : 'Turn off camera'}
-        >
-          {isVideoOff ? '📷' : '📹'}
-        </button>
+  const toggleVideo = () => {
+    const newVideoOff = !isVideoOff;
+    setIsVideoOff(newVideoOff);
 
-        <button
-          onClick={handleEndGame}
-          className="control-btn end-btn"
-          title="End game"
-        >
-          ✕ Leave Game
-        </button>
+    if (localStreamRef.current) {
+      localStreamRef.current.getVideoTracks().forEach(track => {
+        track.enabled = !newVideoOff;
+      });
+    }
+  };
+
+  const handleEndGame = () => {
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+
+    onGameEnd();
+  };
+
+  return (
+    <div className="game-room-container">
+      <div className="game-room-header">
+        <h2>{gameName}</h2>
+        <p>Connection: {connectionState}</p>
       </div>
+
+      <div className="video-grid">
+        <video ref={videoRef} autoPlay muted playsInline />
+        <video ref={remoteVideoRef} autoPlay playsInline />
+      </div>
+
+      <div className="game-controls">
+        <button onClick={toggleMute}>Mute</button>
+        <button onClick={toggleVideo}>Video</button>
+        <button onClick={handleEndGame}>Leave</button>
+      </div>
+
+      {gameId === 'trivia' ? (
+        <TriviaGame
+          matchId={matchData?.matchId}
+          playerName={playerName}
+          opponentName={opponentName}
+        />
+      ) : (
+        <div>Waiting for game...</div>
+      )}
     </div>
   );
 }
