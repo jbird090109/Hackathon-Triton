@@ -27,9 +27,23 @@ export default function GameRoom({
   const [remoteCameraActive, setRemoteCameraActive] = useState(false);
 
  useEffect(() => {
+  console.log("🔥 GameRoom mounted");
+  console.log("matchData:", matchData);
+  console.log("matchId:", matchData?.matchId);
+  console.log("isPlayer1:", matchData?.isPlayer1);
+
+  if (!matchData?.matchId) {
+    console.log("❌ No matchId yet");
+    return;
+  }
+
+  console.log("🚧 Checking matchData before init...");
   if (!matchData?.matchId) return;
 
   isMountedRef.current = true;
+  console.log("🔌 socketService object:", socketService);
+  console.log("🔌 socket connected:", socketService?.socket?.connected);
+  console.log("🔌 socket id:", socketService?.socket?.id);
 
   // IMPORTANT: ensure only one PC exists
   if (pcRef.current) {
@@ -40,6 +54,7 @@ export default function GameRoom({
   const pc = new RTCPeerConnection({
     iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
   });
+  console.log("🧠 PeerConnection CREATED");
 
   pcRef.current = pc;
 
@@ -50,6 +65,8 @@ export default function GameRoom({
   // TRACK HANDLING
   // -------------------
   pc.ontrack = (event) => {
+    console.log("🎥 TRACK EVENT FIRED");
+    console.log("🎥 Streams:", event.streams);
     if (remoteVideoRef.current && event.streams?.[0]) {
       remoteVideoRef.current.srcObject = event.streams[0];
       setRemoteCameraActive(true);
@@ -60,10 +77,12 @@ export default function GameRoom({
   // STATE LOGGING
   // -------------------
   pc.oniceconnectionstatechange = () => {
+    console.log("🧊 ICE STATE:", pc.iceConnectionState);
     setConnectionState(pc.iceConnectionState || 'new');
   };
 
   pc.onconnectionstatechange = () => {
+    console.log("🔗 CONNECTION STATE:", pc.connectionState);
     setConnectionState(pc.connectionState || 'new');
   };
 
@@ -115,10 +134,13 @@ export default function GameRoom({
   // CREATE OFFER (FIXED)
   // -------------------
   const createOffer = async () => {
+    console.log("📤 Creating offer...");
     if (pc.signalingState !== 'stable') return;
 
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
+    console.log("📤 Local description set:", pc.localDescription);
+    console.log("📤 Sending offer to server");
 
     socketService.sendOffer(matchData.matchId, offer);
   };
@@ -128,18 +150,22 @@ export default function GameRoom({
   // -------------------
   const handleOffer = async ({ offer }) => {
     try {
+      console.log("📩 Handling offer...");
       await startLocalStream();
 
       // 🔥 CRITICAL FIX: prevent wrong-state crash
+      console.log("📩 Current signaling state:", pc.signalingState);
       if (pc.signalingState !== 'stable' && pc.signalingState !== 'have-local-offer') {
         console.log("Ignoring offer due to bad state:", pc.signalingState);
         return;
       }
 
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      console.log("📩 Remote description set (offer accepted)");
       hasRemoteOffer = true;
 
       const answer = await pc.createAnswer();
+      console.log("📤 Answer created");
       await pc.setLocalDescription(answer);
 
       socketService.sendAnswer(matchData.matchId, answer);
@@ -183,8 +209,10 @@ export default function GameRoom({
   const handleIceCandidate = async ({ candidate }) => {
     try {
       if (!candidate?.candidate) return;
+      console.log("🧊 ICE candidate received:", candidate);
 
       const ice = new RTCIceCandidate(candidate);
+      console.log("🧊 Remote description exists:", !!pc.remoteDescription);
 
       if (!pc.remoteDescription) {
         pendingCandidates.push(ice);
@@ -204,12 +232,26 @@ export default function GameRoom({
   socketService.on('webrtc-answer', handleAnswer);
   socketService.on('webrtc-ice-candidate', handleIceCandidate);
 
+  socketService.on("webrtc-offer", (data) => {
+    console.log("📩 OFFER RECEIVED:", data);
+  });
+  socketService.on("webrtc-answer", (data) => {
+    console.log("📩 ANSWER RECEIVED:", data);
+  });
+  socketService.on("webrtc-ice-candidate", (data) => {
+    console.log("🧊 ICE RECEIVED:", data);
+  });
+  socketService.on("match-ready", (data) => {
+    console.log("🎯 MATCH READY:", data);
+  });
+
   // -------------------
   // INIT
   // -------------------
   const setup = async () => {
     await startLocalStream();
     socketService.joinMatch(matchData.matchId);
+    console.log("🚪 Joined match room:", matchData.matchId);
 
     if (matchData.isPlayer1) {
       setTimeout(createOffer, 500);
@@ -227,7 +269,12 @@ export default function GameRoom({
     socketService.off('webrtc-offer', handleOffer);
     socketService.off('webrtc-answer', handleAnswer);
     socketService.off('webrtc-ice-candidate', handleIceCandidate);
+    socketService.off('webrtc-offer');
+    socketService.off('webrtc-answer');
+    socketService.off('webrtc-ice-candidate');
+    socketService.off('match-ready');
 
+    console.log("🧹 GameRoom cleanup running");
     if (pcRef.current) {
       pcRef.current.close();
       pcRef.current = null;
@@ -237,7 +284,6 @@ export default function GameRoom({
       localStreamRef.current.getTracks().forEach(t => t.stop());
     }
   };
-
 }, [matchData?.matchId, matchData?.isPlayer1, gameId]);
  
 useEffect(() => {
