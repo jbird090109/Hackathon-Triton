@@ -3,7 +3,6 @@ import io from 'socket.io-client';
 class SocketService {
   constructor() {
     this.socket = null;
-    this.listeners = {};
   }
 
   connect(
@@ -11,6 +10,8 @@ class SocketService {
       ? `${window.location.protocol}//${window.location.host}`
       : 'http://localhost:5000'
   ) {
+    if (this.socket) return;
+
     this.socket = io(serverUrl, {
       reconnection: true,
       reconnectionDelay: 1000,
@@ -19,19 +20,18 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('Connected to server');
-      this.emit('connected');
+      console.log('Connected to server:', this.socket.id);
     });
 
     this.socket.on('disconnect', () => {
       console.log('Disconnected from server');
-      this.emit('disconnected');
     });
   }
 
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
+      this.socket = null;
     }
   }
 
@@ -53,7 +53,6 @@ class SocketService {
     }
   }
 
-  // Game-specific methods
   joinQueue(playerName, gameCategory, isJudge = false) {
     this.emit('join-queue', {
       playerName,
@@ -67,12 +66,12 @@ class SocketService {
     this.emit('leave-queue');
   }
 
-  acceptMatch() {
-    this.emit('accept-match');
+  joinMatch(matchId) {
+    this.emit('join-match', { matchId });
   }
 
-  rejectMatch() {
-    this.emit('reject-match');
+  sendTriviaFinished(matchId, score, totalQuestions) {
+    this.emit('trivia-finished', { matchId, score, totalQuestions });
   }
 
   sendGameData(data) {
@@ -83,16 +82,8 @@ class SocketService {
     this.emit('game-result', result);
   }
 
-  sendTriviaAnswer(matchId, answerIndex) {
-    this.emit('trivia-answer', { matchId, answerIndex });
-  }
-
   sendJudgeVote(vote) {
     this.emit('judge-vote', vote);
-  }
-
-  joinMatch(matchId) {
-    this.emit('join-match', { matchId });
   }
 
   sendOffer(matchId, offer) {
