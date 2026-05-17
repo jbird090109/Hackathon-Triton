@@ -37,6 +37,8 @@ export default function GameRoom({
 
     pcRef.current = pc;
 
+    const pendingCandidates = [];
+
     pc.ontrack = (event) => {
       if (remoteVideoRef.current && event.streams?.[0]) {
         remoteVideoRef.current.srcObject = event.streams[0];
@@ -85,7 +87,9 @@ export default function GameRoom({
         }
 
         stream.getTracks().forEach((track) => {
-          pc.addTrack(track, stream);
+          if (pc.signalingState !== 'closed') {
+            pc.addTrack(track, stream);
+          }
         });
 
         return stream;
@@ -145,6 +149,11 @@ export default function GameRoom({
           type: answer.type,
           sdp: answer.sdp,
         });
+
+        for (const c of pendingCandidates) {
+          await pc.addIceCandidate(c);
+        }
+        pendingCandidates.length = 0;
       } catch (err) {
         console.error('Failed to handle offer:', err);
       }
@@ -160,6 +169,11 @@ export default function GameRoom({
             sdp: answer.sdp,
           })
         );
+
+        for (const c of pendingCandidates) {
+          await pc.addIceCandidate(c);
+        }
+        pendingCandidates.length = 0;
       } catch (err) {
         console.error('Failed to handle answer:', err);
       }
@@ -167,15 +181,20 @@ export default function GameRoom({
 
     const handleIceCandidate = async ({ candidate }) => {
       try {
-        if (!candidate?.candidate || pc.signalingState === 'closed') return;
+        if (!candidate?.candidate) return;
 
-        await pc.addIceCandidate(
-          new RTCIceCandidate({
-            candidate: candidate.candidate,
-            sdpMLineIndex: candidate.sdpMLineIndex,
-            sdpMid: candidate.sdpMid,
-          })
-        );
+        const ice = new RTCIceCandidate({
+          candidate: candidate.candidate,
+          sdpMLineIndex: candidate.sdpMLineIndex,
+          sdpMid: candidate.sdpMid,
+        });
+
+        if (!pc.remoteDescription) {
+          pendingCandidates.push(ice);
+          return;
+        }
+
+        await pc.addIceCandidate(ice);
       } catch (err) {
         console.error('Failed to add ICE candidate:', err);
       }
