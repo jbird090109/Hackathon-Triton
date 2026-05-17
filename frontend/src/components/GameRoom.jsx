@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import '../styles/GameRoom.css';
 import socketService from '../services/socketService';
+import TriviaGame from './TriviaGame';
 
 export default function GameRoom({
   playerName,
@@ -412,11 +413,18 @@ export default function GameRoom({
       {/* Game Display Area - Shows results from Java backend */}
       <div className="game-display-area">
         <div className="game-content">
-          {/* This area will be filled by Java backend game logic */}
-          <div className="placeholder">
-            <p>Game State: {gameStatus}</p>
-            <p>Waiting for game data from server...</p>
-          </div>
+          {gameId === 'trivia' ? (
+            <TriviaGame
+              matchId={matchData?.matchId}
+              playerName={playerName}
+              opponentName={opponentName}
+            />
+          ) : (
+            <div className="placeholder">
+              <p>Game State: {gameStatus}</p>
+              <p>Waiting for game data from server...</p>
+            </div>
+          )}
         </div>
       </div>
 

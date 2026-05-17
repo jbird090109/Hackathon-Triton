@@ -30,7 +30,13 @@ function App() {
     // Listen for game results
     socketService.on('game-ended', (result) => {
       console.log('Game ended:', result);
-      setGameResult(result);
+      const localWinner = result.winnerName === playerName ? 'You' : result.winnerName;
+      const localLoser = result.winnerName === playerName ? result.loserName : 'You';
+      setGameResult({
+        ...result,
+        winner: localWinner,
+        loser: localLoser,
+      });
       setAppState('results');
     });
 

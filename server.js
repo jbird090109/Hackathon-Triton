@@ -35,9 +35,93 @@ const judgeQueues = {
 const activeMatches = new Map();
 const playerSockets = new Map(); // Map of playerId to socket
 
+const triviaQuestions = [
+  {
+    question: 'What planet is known as the Red Planet?',
+    options: ['Earth', 'Mars', 'Venus', 'Jupiter'],
+    correctIndex: 1,
+  },
+  {
+    question: 'What gas do plants absorb from the atmosphere?',
+    options: ['Oxygen', 'Hydrogen', 'Carbon Dioxide', 'Nitrogen'],
+    correctIndex: 2,
+  },
+  {
+    question: 'What is the chemical symbol for gold?',
+    options: ['Ag', 'Au', 'Fe', 'Go'],
+    correctIndex: 1,
+  },
+  {
+    question: 'Who was the first president of the United States?',
+    options: ['Abraham Lincoln', 'Thomas Jefferson', 'George Washington', 'John Adams'],
+    correctIndex: 2,
+  },
+  {
+    question: 'In what year did World War II end?',
+    options: ['1945', '1939', '1918', '1955'],
+    correctIndex: 0,
+  },
+  {
+    question: 'Which ancient civilization built the pyramids?',
+    options: ['Romans', 'Greeks', 'Mayans', 'Egyptians'],
+    correctIndex: 3,
+  },
+  {
+    question: 'How many players are on a soccer team on the field?',
+    options: ['9', '10', '11', '12'],
+    correctIndex: 2,
+  },
+  {
+    question: 'Which sport uses a shuttlecock?',
+    options: ['Tennis', 'Badminton', 'Volleyball', 'Table Tennis'],
+    correctIndex: 1,
+  },
+  {
+    question: 'How many points is a touchdown worth in football?',
+    options: ['3', '6', '7', '2'],
+    correctIndex: 1,
+  },
+  {
+    question: 'Which movie features the character Iron Man?',
+    options: ['Justice League', 'Avengers', 'Avatar', 'Titanic'],
+    correctIndex: 1,
+  },
+  {
+    question: 'Who is the main wizard in Harry Potter?',
+    options: ['Gandalf', 'Merlin', 'Dumbledore', 'Harry Potter'],
+    correctIndex: 3,
+  },
+  {
+    question: 'Which movie features talking toys?',
+    options: ['Frozen', 'Toy Story', 'Cars', 'Shrek'],
+    correctIndex: 1,
+  },
+  {
+    question: 'What is the capital of Japan?',
+    options: ['Beijing', 'Tokyo', 'Seoul', 'Bangkok'],
+    correctIndex: 1,
+  },
+  {
+    question: 'Which continent is Egypt located in?',
+    options: ['Asia', 'Europe', 'Africa', 'South America'],
+    correctIndex: 2,
+  },
+  {
+    question: 'Which ocean is the largest?',
+    options: ['Atlantic', 'Indian', 'Arctic', 'Pacific'],
+    correctIndex: 3,
+  },
+];
+
+const TRIVIA_QUESTION_COUNT = 10;
+
 // Utility functions
 function generateMatchId() {
   return `match-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function shuffleArray(array) {
+  return [...array].sort(() => Math.random() - 0.5);
 }
 
 function findAndMatchPlayers(gameId, isJudge = false) {
@@ -71,6 +155,81 @@ function findAndMatchPlayers(gameId, isJudge = false) {
   }
 
   return null;
+}
+
+function buildTriviaPayload(match, roundResult = null, correctIndex = null, isFinal = false) {
+  const trivia = match.trivia;
+  const question = trivia.questions[trivia.currentIndex];
+  const participants = {
+    [match.player1.socketId]: match.player1.name,
+    [match.player2.socketId]: match.player2.name,
+  };
+
+  return {
+    matchId: match.id,
+    currentQuestionIndex: trivia.currentIndex,
+    totalQuestions: trivia.questions.length,
+    question: question.question,
+    options: question.options,
+    scores: {
+      [match.player1.socketId]: trivia.scores[match.player1.socketId],
+      [match.player2.socketId]: trivia.scores[match.player2.socketId],
+    },
+    players: participants,
+    roundResult,
+    correctIndex,
+    bothAnswered: trivia.answered.size === 2,
+    isFinalQuestion: isFinal,
+  };
+}
+
+function startTriviaMatch(match) {
+  const questionOrder = shuffleArray(triviaQuestions.map((_, index) => index)).slice(0, TRIVIA_QUESTION_COUNT);
+  const questions = questionOrder.map((index) => triviaQuestions[index]);
+  match.trivia = {
+    questions,
+    currentIndex: 0,
+    scores: {
+      [match.player1.socketId]: 0,
+      [match.player2.socketId]: 0,
+    },
+    answered: new Set(),
+  };
+
+  const payload = buildTriviaPayload(match, 'Trivia match has started!', null, false);
+  io.to(match.id).emit('trivia-start', payload);
+}
+
+function advanceTriviaQuestion(matchId) {
+  const match = activeMatches.get(matchId);
+  if (!match || !match.trivia) return;
+
+  match.trivia.answered.clear();
+  match.trivia.currentIndex += 1;
+
+  if (match.trivia.currentIndex >= match.trivia.questions.length) {
+    const score1 = match.trivia.scores[match.player1.socketId];
+    const score2 = match.trivia.scores[match.player2.socketId];
+    const winnerName = score1 >= score2 ? match.player1.name : match.player2.name;
+    const loserName = winnerName === match.player1.name ? match.player2.name : match.player1.name;
+    const result = {
+      winnerName,
+      loserName,
+      gameName: formatGameName(match.gameId),
+      finalScores: {
+        [match.player1.name]: score1,
+        [match.player2.name]: score2,
+      },
+      matchId,
+    };
+
+    io.to(match.id).emit('game-ended', result);
+    activeMatches.delete(matchId);
+    return;
+  }
+
+  const payload = buildTriviaPayload(match, 'Next question ready!', null, false);
+  io.to(match.id).emit('trivia-update', payload);
 }
 
 // Socket connection handling
@@ -204,6 +363,33 @@ io.on('connection', (socket) => {
     const clients = await io.in(matchId).allSockets();
     if (clients.size === 2) {
       io.to(matchId).emit('match-ready', { matchId });
+      const match = activeMatches.get(matchId);
+      if (match && match.gameId === 'trivia') {
+        startTriviaMatch(match);
+      }
+    }
+  });
+
+  socket.on('trivia-answer', ({ matchId, answerIndex }) => {
+    const match = activeMatches.get(matchId);
+    if (!match || !match.trivia) return;
+    if (!match.trivia.questions[match.trivia.currentIndex]) return;
+    if (match.trivia.answered.has(socket.id)) return;
+
+    const currentQuestion = match.trivia.questions[match.trivia.currentIndex];
+    if (answerIndex === currentQuestion.correctIndex) {
+      match.trivia.scores[socket.id] += 1;
+    }
+    match.trivia.answered.add(socket.id);
+
+    const roundResult = `${playerSockets.get(socket.id)?.name || 'A player'} answered ${
+      answerIndex === currentQuestion.correctIndex ? 'correctly' : 'incorrectly'
+    }.`;
+    const payload = buildTriviaPayload(match, roundResult, currentQuestion.correctIndex, false);
+    io.to(matchId).emit('trivia-update', payload);
+
+    if (match.trivia.answered.size === 2) {
+      setTimeout(() => advanceTriviaQuestion(matchId), 1400);
     }
   });
 
