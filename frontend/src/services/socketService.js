@@ -3,14 +3,15 @@ import io from 'socket.io-client';
 class SocketService {
   constructor() {
     this.socket = null;
-    this.listeners = {};
   }
 
   connect(
     serverUrl = typeof window !== 'undefined'
-      ? `${window.location.protocol}//${window.location.hostname}:5000`
+      ? `${window.location.protocol}//${window.location.host}`
       : 'http://localhost:5000'
   ) {
+    if (this.socket) return;
+
     this.socket = io(serverUrl, {
       reconnection: true,
       reconnectionDelay: 1000,
@@ -19,19 +20,18 @@ class SocketService {
     });
 
     this.socket.on('connect', () => {
-      console.log('Connected to server');
-      this.emit('connected');
+      console.log('Connected to server:', this.socket.id);
     });
 
     this.socket.on('disconnect', () => {
       console.log('Disconnected from server');
-      this.emit('disconnected');
     });
   }
 
   disconnect() {
     if (this.socket) {
       this.socket.disconnect();
+      this.socket = null;
     }
   }
 
@@ -53,7 +53,6 @@ class SocketService {
     }
   }
 
-  // Game-specific methods
   joinQueue(playerName, gameCategory, isJudge = false) {
     this.emit('join-queue', {
       playerName,
@@ -67,12 +66,12 @@ class SocketService {
     this.emit('leave-queue');
   }
 
-  acceptMatch() {
-    this.emit('accept-match');
+  joinMatch(matchId) {
+    this.emit('join-match', { matchId });
   }
 
-  rejectMatch() {
-    this.emit('reject-match');
+  sendTriviaFinished(matchId, score, totalQuestions) {
+    this.emit('trivia-finished', { matchId, score, totalQuestions });
   }
 
   sendGameData(data) {
@@ -85,6 +84,18 @@ class SocketService {
 
   sendJudgeVote(vote) {
     this.emit('judge-vote', vote);
+  }
+
+  sendOffer(matchId, offer) {
+    this.emit('webrtc-offer', { matchId, offer });
+  }
+
+  sendAnswer(matchId, answer) {
+    this.emit('webrtc-answer', { matchId, answer });
+  }
+
+  sendIceCandidate(matchId, candidate) {
+    this.emit('webrtc-ice-candidate', { matchId, candidate });
   }
 
   getSocket() {

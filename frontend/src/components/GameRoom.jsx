@@ -1,139 +1,266 @@
 import { useEffect, useRef, useState } from 'react';
 import '../styles/GameRoom.css';
+import socketService from '../services/socketService';
+import TriviaGame from './TriviaGame';
 
 export default function GameRoom({
   playerName,
   opponentName,
   gameName,
   gameId,
+  matchData,
   onGameEnd,
 }) {
   const videoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const pcRef = useRef(null);
+  const localStreamRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const remoteCandidatesRef = useRef([]);
+
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [gameStatus, setGameStatus] = useState('in-progress');
+  const [gameStatus] = useState('in-progress');
+  const [connectionState, setConnectionState] = useState('new');
+  const [cameraError, setCameraError] = useState(null);
+  const [localCameraActive, setLocalCameraActive] = useState(false);
+  const [remoteCameraActive, setRemoteCameraActive] = useState(false);
 
-  // Timer
   useEffect(() => {
-    const timer = setInterval(() => {
-      setElapsedTime((prev) => prev + 1);
-    }, 1000);
+    if (!matchData?.matchId) return;
 
-    return () => clearInterval(timer);
-  }, []);
+    isMountedRef.current = true;
 
-  // Initialize local video
-  useEffect(() => {
-    const startVideo = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+    useEffect(() => {
+      if (!matchData?.matchId) return;
+
+      console.log('[GameRoom] Initializing connection for match', matchData.matchId, 'gameId=', gameId);
+
+      isMountedRef.current = true;
+
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+      });
+
+      pcRef.current = pc;
+
+      // buffer for remote candidates that arrive before pc is ready
+      remoteCandidatesRef.current = [];
+
+      pc.ontrack = (event) => {
+        console.log('[GameRoom] ontrack', event);
+        if (remoteVideoRef.current && event.streams?.[0]) {
+          remoteVideoRef.current.srcObject = event.streams[0];
+          setRemoteCameraActive(true);
         }
-      } catch (err) {
-        console.error('Error accessing camera:', err);
-      }
-    };
+      };
 
-    startVideo();
+      pc.oniceconnectionstatechange = () => {
+        import { useEffect, useRef, useState } from 'react';
+        import '../styles/GameRoom.css';
+        import socketService from '../services/socketService';
+        import TriviaGame from './TriviaGame';
 
-    return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, []);
+        export default function GameRoom({
+          playerName,
+          opponentName,
+          gameName,
+          gameId,
+          matchData,
+          onGameEnd,
+        }) {
+          const videoRef = useRef(null);
+          const remoteVideoRef = useRef(null);
+          const pcRef = useRef(null);
+          const localStreamRef = useRef(null);
+          const isMountedRef = useRef(true);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
+          const [isMuted, setIsMuted] = useState(false);
+          const [isVideoOff, setIsVideoOff] = useState(false);
+          const [elapsedTime, setElapsedTime] = useState(0);
+          const [gameStatus] = useState('in-progress');
+          const [connectionState, setConnectionState] = useState('new');
 
-  const toggleMute = () => {
-    setIsMuted(!isMuted);
-    if (videoRef.current?.srcObject) {
-      videoRef.current.srcObject.getAudioTracks().forEach((track) => {
-        track.enabled = isMuted;
-      });
-    }
-  };
+          useEffect(() => {
+            if (!matchData?.matchId) return;
 
-  const toggleVideo = () => {
-    setIsVideoOff(!isVideoOff);
-    if (videoRef.current?.srcObject) {
-      videoRef.current.srcObject.getVideoTracks().forEach((track) => {
-        track.enabled = isVideoOff;
-      });
-    }
-  };
+            isMountedRef.current = true;
 
-  const handleEndGame = () => {
-    if (videoRef.current?.srcObject) {
-      videoRef.current.srcObject.getTracks().forEach((track) => track.stop());
-    }
-    onGameEnd();
-  };
+            const pc = new RTCPeerConnection({
+              iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+            });
 
-  return (
-    <div className="game-room-container">
-      <div className="game-room-header">
-        <div className="game-title">
-          <h2>{gameName}</h2>
-          <p className="time-display">⏱️ {formatTime(elapsedTime)}</p>
-        </div>
-      </div>
+            pcRef.current = pc;
 
-      <div className="video-grid">
-        {/* Local video */}
-        <div className="video-container local">
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className={`video-feed ${isVideoOff ? 'video-off' : ''}`}
-          />
-          <div className="player-info">
-            <span className="player-name">You</span>
-            <span className="player-label">{playerName}</span>
-          </div>
-          {isVideoOff && <div className="video-off-overlay">📷 Camera Off</div>}
-        </div>
+            pc.ontrack = (event) => {
+              if (remoteVideoRef.current && event.streams?.[0]) {
+                remoteVideoRef.current.srcObject = event.streams[0];
+              }
+            };
 
-        {/* Remote video (opponent) */}
-        <div className="video-container remote">
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className="video-feed"
-          />
-          <div className="player-info">
-            <span className="player-name">Opponent</span>
-            <span className="player-label">{opponentName}</span>
-          </div>
-        </div>
-      </div>
+            pc.oniceconnectionstatechange = () => {
+              setConnectionState(pc.iceConnectionState || 'new');
+            };
 
-      {/* Game Display Area - Shows results from Java backend */}
-      <div className="game-display-area">
-        <div className="game-content">
-          {/* This area will be filled by Java backend game logic */}
-          <div className="placeholder">
-            <p>Game State: {gameStatus}</p>
-            <p>Waiting for game data from server...</p>
-          </div>
-        </div>
-      </div>
+            pc.onconnectionstatechange = () => {
+              setConnectionState(pc.connectionState || 'new');
+            };
 
-      {/* Controls */}
-      <div className="game-controls">
+            pc.onicecandidate = (event) => {
+              if (event.candidate) {
+                socketService.sendIceCandidate(matchData.matchId, {
+                  candidate: event.candidate.candidate,
+                  sdpMLineIndex: event.candidate.sdpMLineIndex,
+                  sdpMid: event.candidate.sdpMid,
+                });
+              }
+            };
+
+            const startLocalStream = async () => {
+              try {
+                if (!isMountedRef.current || pc.signalingState === 'closed') return null;
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                  video: true,
+                  audio: true,
+                });
+
+                if (!isMountedRef.current || pc.signalingState === 'closed') {
+                  stream.getTracks().forEach((track) => track.stop());
+                  return null;
+                }
+
+                localStreamRef.current = stream;
+
+                if (videoRef.current) {
+                  videoRef.current.srcObject = stream;
+                }
+
+                stream.getTracks().forEach((track) => {
+                  pc.addTrack(track, stream);
+                });
+
+                return stream;
+              } catch (err) {
+                console.error('Camera/Microphone error:', err);
+                return null;
+              }
+            };
+
+            const createOffer = async () => {
+              try {
+                if (!localStreamRef.current) {
+                  await startLocalStream();
+                }
+
+                if (pc.signalingState === 'closed') return;
+
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+
+                socketService.sendOffer(matchData.matchId, {
+                  type: offer.type,
+                  sdp: offer.sdp,
+                });
+              } catch (err) {
+                console.error('Failed to create offer:', err);
+              }
+            };
+
+            const handleMatchReady = async () => {
+              if (matchData.isPlayer1) {
+                await createOffer();
+              }
+            };
+
+            const handleOffer = async ({ offer }) => {
+              try {
+                if (!localStreamRef.current) {
+                  await startLocalStream();
+                }
+
+                if (pc.signalingState === 'closed') return;
+
+                await pc.setRemoteDescription(
+                  new RTCSessionDescription({
+                    type: 'offer',
+                    sdp: offer.sdp,
+                  })
+                );
+
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+
+                socketService.sendAnswer(matchData.matchId, {
+                  type: answer.type,
+                  sdp: answer.sdp,
+                });
+              } catch (err) {
+                console.error('Failed to handle offer:', err);
+              }
+            };
+
+            const handleAnswer = async ({ answer }) => {
+              try {
+                if (pc.signalingState === 'closed') return;
+
+                await pc.setRemoteDescription(
+                  new RTCSessionDescription({
+                    type: 'answer',
+                    sdp: answer.sdp,
+                  })
+                );
+              } catch (err) {
+                console.error('Failed to handle answer:', err);
+              }
+            };
+
+            const handleIceCandidate = async ({ candidate }) => {
+              try {
+                if (!candidate?.candidate || pc.signalingState === 'closed') return;
+
+                await pc.addIceCandidate(
+                  new RTCIceCandidate({
+                    candidate: candidate.candidate,
+                    sdpMLineIndex: candidate.sdpMLineIndex,
+                    sdpMid: candidate.sdpMid,
+                  })
+                );
+              } catch (err) {
+                console.error('Failed to add ICE candidate:', err);
+              }
+            };
+
+            socketService.on('match-ready', handleMatchReady);
+            socketService.on('webrtc-offer', handleOffer);
+            socketService.on('webrtc-answer', handleAnswer);
+            socketService.on('webrtc-ice-candidate', handleIceCandidate);
+
+            const setupConnection = async () => {
+              await startLocalStream();
+              socketService.joinMatch(matchData.matchId);
+            };
+
+            setupConnection();
+
+            return () => {
+              isMountedRef.current = false;
+
+              socketService.off('match-ready', handleMatchReady);
+              socketService.off('webrtc-offer', handleOffer);
+              socketService.off('webrtc-answer', handleAnswer);
+              socketService.off('webrtc-ice-candidate', handleIceCandidate);
+
+              if (pc.signalingState !== 'closed') {
+                pc.close();
+              }
+
+              if (localStreamRef.current) {
+                localStreamRef.current.getTracks().forEach((track) => track.stop());
+              }
+            };
+          }, [matchData?.matchId, matchData?.isPlayer1]);
         <button
           onClick={toggleMute}
           className={`control-btn ${isMuted ? 'active' : ''}`}
