@@ -26,213 +26,221 @@ export default function GameRoom({
   const [localCameraActive, setLocalCameraActive] = useState(false);
   const [remoteCameraActive, setRemoteCameraActive] = useState(false);
 
-  useEffect(() => {
-    if (!matchData?.matchId) return;
+ useEffect(() => {
+  if (!matchData?.matchId) return;
 
-    isMountedRef.current = true;
+  isMountedRef.current = true;
 
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+  // IMPORTANT: ensure only one PC exists
+  if (pcRef.current) {
+    pcRef.current.close();
+    pcRef.current = null;
+  }
+
+  const pc = new RTCPeerConnection({
+    iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
+  });
+
+  pcRef.current = pc;
+
+  const pendingCandidates = [];
+  let hasRemoteOffer = false;
+
+  // -------------------
+  // TRACK HANDLING
+  // -------------------
+  pc.ontrack = (event) => {
+    if (remoteVideoRef.current && event.streams?.[0]) {
+      remoteVideoRef.current.srcObject = event.streams[0];
+      setRemoteCameraActive(true);
+    }
+  };
+
+  // -------------------
+  // STATE LOGGING
+  // -------------------
+  pc.oniceconnectionstatechange = () => {
+    setConnectionState(pc.iceConnectionState || 'new');
+  };
+
+  pc.onconnectionstatechange = () => {
+    setConnectionState(pc.connectionState || 'new');
+  };
+
+  // -------------------
+  // ICE SEND
+  // -------------------
+  pc.onicecandidate = (event) => {
+    if (!event.candidate) return;
+
+    socketService.sendIceCandidate(matchData.matchId, {
+      candidate: event.candidate.candidate,
+      sdpMLineIndex: event.candidate.sdpMLineIndex,
+      sdpMid: event.candidate.sdpMid,
     });
+  };
 
-    pcRef.current = pc;
+  // -------------------
+  // LOCAL STREAM
+  // -------------------
+  const startLocalStream = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
 
-    const pendingCandidates = [];
+      localStreamRef.current = stream;
 
-    pc.ontrack = (event) => {
-      if (remoteVideoRef.current && event.streams?.[0]) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-        setRemoteCameraActive(true);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
       }
-    };
 
-    pc.oniceconnectionstatechange = () => {
-      setConnectionState(pc.iceConnectionState || 'new');
-    };
+      setLocalCameraActive(true);
 
-    pc.onconnectionstatechange = () => {
-      setConnectionState(pc.connectionState || 'new');
-    };
-
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socketService.sendIceCandidate(matchData.matchId, {
-          candidate: event.candidate.candidate,
-          sdpMLineIndex: event.candidate.sdpMLineIndex,
-          sdpMid: event.candidate.sdpMid,
-        });
-      }
-    };
-
-    const startLocalStream = async () => {
-      try {
-        if (!isMountedRef.current || pc.signalingState === 'closed') return null;
-
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
-
-        if (!isMountedRef.current || pc.signalingState === 'closed') {
-          stream.getTracks().forEach((track) => track.stop());
-          return null;
+      stream.getTracks().forEach((track) => {
+        if (pc.signalingState !== 'closed') {
+          pc.addTrack(track, stream);
         }
+      });
 
-        localStreamRef.current = stream;
-        setCameraError(null);
-        setLocalCameraActive(true);
+      return stream;
+    } catch (err) {
+      console.error('Camera error:', err);
+      setCameraError('Camera unavailable or denied');
+    }
+  };
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
+  // -------------------
+  // CREATE OFFER (FIXED)
+  // -------------------
+  const createOffer = async () => {
+    if (pc.signalingState !== 'stable') return;
 
-        stream.getTracks().forEach((track) => {
-          if (pc.signalingState !== 'closed') {
-            pc.addTrack(track, stream);
-          }
-        });
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
 
-        return stream;
-      } catch (err) {
-        console.error('Camera/Microphone error:', err);
-        setCameraError('Camera unavailable or permission denied');
-        setLocalCameraActive(false);
-        return null;
-      }
-    };
+    socketService.sendOffer(matchData.matchId, offer);
+  };
 
-    const createOffer = async () => {
-      try {
-        if (!localStreamRef.current) {
-          await startLocalStream();
-        }
-
-        if (pc.signalingState === 'closed') return;
-
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-
-        socketService.sendOffer(matchData.matchId, {
-          type: offer.type,
-          sdp: offer.sdp,
-        });
-      } catch (err) {
-        console.error('Failed to create offer:', err);
-      }
-    };
-
-    const handleMatchReady = async () => {
-      if (matchData.isPlayer1) {
-        await createOffer();
-      }
-    };
-
-    const handleOffer = async ({ offer }) => {
-      try {
-        if (!localStreamRef.current) {
-          await startLocalStream();
-        }
-
-        if (pc.signalingState === 'closed') return;
-
-        await pc.setRemoteDescription(
-          new RTCSessionDescription({
-            type: 'offer',
-            sdp: offer.sdp,
-          })
-        );
-
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-
-        socketService.sendAnswer(matchData.matchId, {
-          type: answer.type,
-          sdp: answer.sdp,
-        });
-
-        for (const c of pendingCandidates) {
-          await pc.addIceCandidate(c);
-        }
-        pendingCandidates.length = 0;
-      } catch (err) {
-        console.error('Failed to handle offer:', err);
-      }
-    };
-
-    const handleAnswer = async ({ answer }) => {
-      try {
-        if (pc.signalingState === 'closed') return;
-
-        await pc.setRemoteDescription(
-          new RTCSessionDescription({
-            type: 'answer',
-            sdp: answer.sdp,
-          })
-        );
-
-        for (const c of pendingCandidates) {
-          await pc.addIceCandidate(c);
-        }
-        pendingCandidates.length = 0;
-      } catch (err) {
-        console.error('Failed to handle answer:', err);
-      }
-    };
-
-    const handleIceCandidate = async ({ candidate }) => {
-      try {
-        if (!candidate?.candidate) return;
-
-        const ice = new RTCIceCandidate({
-          candidate: candidate.candidate,
-          sdpMLineIndex: candidate.sdpMLineIndex,
-          sdpMid: candidate.sdpMid,
-        });
-
-        if (!pc.remoteDescription) {
-          pendingCandidates.push(ice);
-          return;
-        }
-
-        await pc.addIceCandidate(ice);
-      } catch (err) {
-        console.error('Failed to add ICE candidate:', err);
-      }
-    };
-
-    socketService.on('match-ready', handleMatchReady);
-    socketService.on('webrtc-offer', handleOffer);
-    socketService.on('webrtc-answer', handleAnswer);
-    socketService.on('webrtc-ice-candidate', handleIceCandidate);
-
-    const setupConnection = async () => {
+  // -------------------
+  // HANDLE OFFER (FIXED STATE GUARD)
+  // -------------------
+  const handleOffer = async ({ offer }) => {
+    try {
       await startLocalStream();
-      socketService.joinMatch(matchData.matchId);
-    };
 
-    setupConnection();
-
-    return () => {
-      isMountedRef.current = false;
-      setLocalCameraActive(false);
-      setRemoteCameraActive(false);
-
-      socketService.off('match-ready', handleMatchReady);
-      socketService.off('webrtc-offer', handleOffer);
-      socketService.off('webrtc-answer', handleAnswer);
-      socketService.off('webrtc-ice-candidate', handleIceCandidate);
-
-      if (pc.signalingState !== 'closed') {
-        pc.close();
+      // 🔥 CRITICAL FIX: prevent wrong-state crash
+      if (pc.signalingState !== 'stable' && pc.signalingState !== 'have-local-offer') {
+        console.log("Ignoring offer due to bad state:", pc.signalingState);
+        return;
       }
 
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [matchData?.matchId, matchData?.isPlayer1, gameId]);
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      hasRemoteOffer = true;
 
-  useEffect(() => {
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+
+      socketService.sendAnswer(matchData.matchId, answer);
+
+      // flush ICE
+      for (const c of pendingCandidates) {
+        await pc.addIceCandidate(c);
+      }
+      pendingCandidates.length = 0;
+
+    } catch (err) {
+      console.error('Failed to handle offer:', err);
+    }
+  };
+
+  // -------------------
+  // HANDLE ANSWER (FIXED GUARD)
+  // -------------------
+  const handleAnswer = async ({ answer }) => {
+    try {
+      if (pc.signalingState !== 'have-local-offer') {
+        console.log("Ignoring answer due to state:", pc.signalingState);
+        return;
+      }
+
+      await pc.setRemoteDescription(new RTCSessionDescription(answer));
+
+      for (const c of pendingCandidates) {
+        await pc.addIceCandidate(c);
+      }
+      pendingCandidates.length = 0;
+
+    } catch (err) {
+      console.error('Failed to handle answer:', err);
+    }
+  };
+
+  // -------------------
+  // ICE HANDLER (SAFE QUEUE)
+  // -------------------
+  const handleIceCandidate = async ({ candidate }) => {
+    try {
+      if (!candidate?.candidate) return;
+
+      const ice = new RTCIceCandidate(candidate);
+
+      if (!pc.remoteDescription) {
+        pendingCandidates.push(ice);
+        return;
+      }
+
+      await pc.addIceCandidate(ice);
+    } catch (err) {
+      console.error('ICE error:', err);
+    }
+  };
+
+  // -------------------
+  // SOCKETS
+  // -------------------
+  socketService.on('webrtc-offer', handleOffer);
+  socketService.on('webrtc-answer', handleAnswer);
+  socketService.on('webrtc-ice-candidate', handleIceCandidate);
+
+  // -------------------
+  // INIT
+  // -------------------
+  const setup = async () => {
+    await startLocalStream();
+    socketService.joinMatch(matchData.matchId);
+
+    if (matchData.isPlayer1) {
+      setTimeout(createOffer, 500);
+    }
+  };
+
+  setup();
+
+  // -------------------
+  // CLEANUP
+  // -------------------
+  return () => {
+    isMountedRef.current = false;
+
+    socketService.off('webrtc-offer', handleOffer);
+    socketService.off('webrtc-answer', handleAnswer);
+    socketService.off('webrtc-ice-candidate', handleIceCandidate);
+
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(t => t.stop());
+    }
+  };
+
+}, [matchData?.matchId, matchData?.isPlayer1, gameId]);
+ 
+useEffect(() => {
     const timer = setInterval(() => {
       setElapsedTime((prev) => prev + 1);
     }, 1000);
