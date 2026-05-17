@@ -53,11 +53,10 @@ class SocketService {
     }
   }
 
-  joinQueue(playerName, gameCategory, isJudge = false) {
+  joinQueue(playerName, gameCategory) {
     this.emit('join-queue', {
       playerName,
       gameCategory,
-      isJudge,
       timestamp: Date.now(),
     });
   }
@@ -80,10 +79,6 @@ class SocketService {
 
   sendResult(result) {
     this.emit('game-result', result);
-  }
-
-  sendJudgeVote(vote) {
-    this.emit('judge-vote', vote);
   }
 
   sendOffer(matchId, offer) {

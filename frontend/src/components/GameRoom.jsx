@@ -350,12 +350,7 @@ useEffect(() => {
           <h2>{gameName}</h2>
           <p className="time-display">⏱️ {formatTime(elapsedTime)}</p>
         </div>
-        {matchData?.judgeName && (
-          <div className="judge-announcement">
-            <span>👨‍⚖️ Judge:</span>
-            <strong>{matchData.judgeName}</strong>
-          </div>
-        )}
+        
       </div>
 
       <div className="video-grid">
@@ -392,6 +387,7 @@ useEffect(() => {
           <div className="player-info">
             <span className="player-name">Opponent</span>
             <span className="player-label">{opponentName}</span>
+            <button className="friend-btn" title="Add Friend">+ Friend</button>
           </div>
 
           {!remoteCameraActive && (

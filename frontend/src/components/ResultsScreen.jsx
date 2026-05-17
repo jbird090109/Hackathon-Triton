@@ -4,7 +4,6 @@ export default function ResultsScreen({
   winner,
   loser,
   gameName,
-  judgeVote,
   onPlayAgain,
   onExit,
 }) {
@@ -31,12 +30,7 @@ export default function ResultsScreen({
                 <span className="stat-label">Opponent:</span>
                 <span className="stat-value">{loser}</span>
               </div>
-              {judgeVote && (
-                <div className="result-stat judge-info">
-                  <span className="stat-label">👨‍⚖️ Judge Decision:</span>
-                  <span className="stat-value">{judgeVote}</span>
-                </div>
-              )}
+              
             </div>
           </>
         ) : (
@@ -55,12 +49,7 @@ export default function ResultsScreen({
                 <span className="stat-label">Winner:</span>
                 <span className="stat-value winner-name">{winner}</span>
               </div>
-              {judgeVote && (
-                <div className="result-stat judge-info">
-                  <span className="stat-label">👨‍⚖️ Judge Decision:</span>
-                  <span className="stat-value">{judgeVote}</span>
-                </div>
-              )}
+              
             </div>
           </>
         )}

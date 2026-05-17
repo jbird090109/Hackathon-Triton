@@ -3,7 +3,6 @@ import WelcomeScreen from './components/WelcomeScreen';
 import GameSelection from './components/GameSelection';
 import WaitingScreen from './components/WaitingScreen';
 import GameRoom from './components/GameRoom';
-import JudgeView from './components/JudgeView';
 import ResultsScreen from './components/ResultsScreen';
 import socketService from './services/socketService';
 import './App.css';
@@ -12,7 +11,6 @@ function App() {
   const [appState, setAppState] = useState('welcome');
   const [playerName, setPlayerName] = useState('');
   const [selectedGame, setSelectedGame] = useState(null);
-  const [isJudge, setIsJudge] = useState(false);
   const [matchData, setMatchData] = useState(null);
   const [gameResult, setGameResult] = useState(null);
 
@@ -36,22 +34,11 @@ function App() {
         ...result,
         winner: localWinner,
         loser: localLoser,
-        judgeVote: result.judgeVote,
       });
       setAppState('results');
     });
 
-    // Listen for judge match found
-    socketService.on('judge-match-found', (data) => {
-      console.log('Judge match found:', data);
-      setMatchData(data);
-      setAppState('judge-view');
-    });
-
-    socketService.on('judge-assigned', (data) => {
-      console.log('Judge assigned:', data);
-      setMatchData((prev) => (prev ? { ...prev, judgeName: data.judgeName } : prev));
-    });
+    
 
     return () => {
       socketService.disconnect();
@@ -64,14 +51,13 @@ function App() {
     setAppState('game-selection');
   };
 
-  // Handle Game Selection - Player chooses game and judge status
-  const handleGameSelect = ({ gameId, gameName, isJudge: judgeStatus }) => {
+  // Handle Game Selection - Player chooses game
+  const handleGameSelect = ({ gameId, gameName }) => {
     setSelectedGame({ gameId, gameName });
-    setIsJudge(judgeStatus);
     setAppState('waiting');
 
     // Join the matchmaking queue
-    socketService.joinQueue(playerName, gameId, judgeStatus);
+    socketService.joinQueue(playerName, gameId);
   };
 
   // Handle Back from Game Selection
@@ -92,11 +78,6 @@ function App() {
     setPlayerName('');
     setSelectedGame(null);
     setMatchData(null);
-  };
-
-  // Handle Judge Vote
-  const handleJudgeVote = (voteData) => {
-    socketService.sendJudgeVote(voteData);
   };
 
   // Handle Play Again
@@ -125,7 +106,6 @@ function App() {
         return (
           <WaitingScreen
             gameName={selectedGame?.gameName}
-            isJudge={isJudge}
             onMatchFound={() => {}}
             onCancel={handleCancelMatchmaking}
           />
@@ -143,17 +123,7 @@ function App() {
           />
         ) : null;
 
-      case 'judge-view':
-        return matchData ? (
-          <JudgeView
-            matchId={matchData.matchId}
-            gameName={matchData.gameName}
-            player1Name={matchData.player1Name}
-            player2Name={matchData.player2Name}
-            onVoteSubmitted={handleJudgeVote}
-            onLeaveGame={handleGameEnd}
-          />
-        ) : null;
+      
 
       case 'results':
         return gameResult ? (

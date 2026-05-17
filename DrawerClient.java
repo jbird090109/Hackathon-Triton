@@ -146,7 +146,7 @@ System.out.println("Mouse pressed at " + click.x + ", " + click.y);
         } else if (submitButton.contains(click)) {
             drawingEnabled = false;
             sendMessage("SUBMIT");
-            statusMessage = "Submitted drawing, waiting for judge";
+            statusMessage = "Submitted drawing";
         } else if (drawingEnabled && click.x >= 40 && click.x <= 1040 && click.y >= 200 && click.y <= 700) {
             //System.out.println("yeah");
             drawing = true;
