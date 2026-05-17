@@ -1,30 +1,29 @@
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
-import java.awt.Graphics;
-import java.awt.GridLayout;
 import java.awt.FlowLayout;
-import java.awt.Point;
-import java.awt.Rectangle;
-import java.awt.Toolkit;
+import java.awt.Font;
+import java.awt.GradientPaint;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.GridLayout;
+import java.awt.RenderingHints;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.KeyEvent;
-import java.awt.event.KeyListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
-
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JPanel;
-import javax.swing.Timer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+
+import javax.swing.BorderFactory;
+import javax.swing.JButton;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingConstants;
+import javax.swing.Timer;
 
 public class Trivia extends JPanel implements ActionListener, MouseListener {
 
@@ -33,10 +32,10 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
     // -------------------------
     int width = 1280;                 // window width
     int height = 800;                 // window height
-    Font titleFont = new Font("Comic Sans MS", Font.BOLD, 32);
-    Font questionFont = new Font("Arial", Font.BOLD, 24);
-    Font buttonFont = new Font("Arial", Font.BOLD, 20);
-    Font statusFont = new Font("Arial", Font.PLAIN, 16);
+    Font titleFont = new Font("Segoe UI Semibold", Font.BOLD, 32);
+    Font questionFont = new Font("Segoe UI", Font.BOLD, 24);
+    Font buttonFont = new Font("Segoe UI", Font.BOLD, 20);
+    Font statusFont = new Font("Segoe UI", Font.PLAIN, 16);
 
         // Step 1.1: Questions array (prompt, 4 options, correct letter A-D)
         String[][] questions = new String[][] {
@@ -99,17 +98,20 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
         JFrame frame = new JFrame("Two-Player Trivia");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(new Dimension(width, height));
+        frame.setResizable(false);
+        frame.setLocationRelativeTo(null);
 
         // Step 2.1: configure this panel with BorderLayout
         this.setLayout(new BorderLayout(10, 10));
         frame.add(this);
 
-        // ensure background
-        this.setBackground(Color.WHITE);
+        // allow gradient background to show through
+        this.setOpaque(false);
 
         // Top panel: title, timer, scores
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 10));
-        topPanel.setBackground(new Color(30, 80, 160));
+        topPanel.setBackground(new Color(18, 32, 70));
+        topPanel.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
         titleLabel = new JLabel("Two-Player Trivia");
         titleLabel.setFont(titleFont);
         titleLabel.setForeground(Color.WHITE);
@@ -133,25 +135,27 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
         this.add(topPanel, BorderLayout.NORTH);
 
         // Center panel: question + options
-        JPanel centerPanel = new JPanel(new BorderLayout(10, 10));
-        questionLabel = new JLabel("Q: ");
+        JPanel centerPanel = new JPanel(new BorderLayout(16, 16));
+        centerPanel.setOpaque(false);
+        questionLabel = new JLabel("<html><body style='width: 1050px;'>Q: </body></html>");
         questionLabel.setFont(questionFont);
+        questionLabel.setForeground(new Color(20, 30, 70));
         questionLabel.setOpaque(true);
-        questionLabel.setBackground(new Color(220, 240, 255));
-        questionLabel.setBorder(javax.swing.BorderFactory.createCompoundBorder(
-                javax.swing.BorderFactory.createLineBorder(new Color(100, 150, 220), 2, true),
-                javax.swing.BorderFactory.createEmptyBorder(15, 15, 15, 15)));
+        questionLabel.setBackground(new Color(245, 250, 255));
+        questionLabel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(165, 190, 230), 2, true),
+                BorderFactory.createEmptyBorder(18, 18, 18, 18)));
         centerPanel.add(questionLabel, BorderLayout.NORTH);
 
-        JPanel optionsGrid = new JPanel(new GridLayout(2, 2, 20, 20));
-        optionsGrid.setBackground(new Color(230, 245, 255));
+        JPanel optionsGrid = new JPanel(new GridLayout(2, 2, 18, 18));
+        optionsGrid.setOpaque(false);
         for (int i = 0; i < 4; i++) {
             javax.swing.JButton b = new javax.swing.JButton("Option " + (i + 1));
             b.setFont(buttonFont);
-            b.setBackground(new Color(255, 200, 60));
-            b.setForeground(Color.DARK_GRAY);
+            b.setBackground(new Color(14, 115, 204));
+            b.setForeground(Color.WHITE);
             b.setFocusPainted(false);
-            b.setBorderPainted(false);
+            b.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
             final int idx = i; // capture index for simple handler
             b.addActionListener(e -> onOptionClicked(idx));
             optionButtons[i] = b;
@@ -162,17 +166,18 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
 
         // Bottom panel: status and next
         JPanel bottomPanel = new JPanel(new BorderLayout());
-        bottomPanel.setBackground(new Color(245, 245, 255));
+        bottomPanel.setOpaque(false);
+        bottomPanel.setBorder(BorderFactory.createEmptyBorder(0, 16, 16, 16));
         statusLabel = new JLabel(statusMessage);
         statusLabel.setFont(statusFont);
-        statusLabel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        statusLabel.setForeground(new Color(220, 220, 230));
         bottomPanel.add(statusLabel, BorderLayout.WEST);
         nextButton = new javax.swing.JButton("Next Question");
         nextButton.setFont(buttonFont);
-        nextButton.setBackground(new Color(80, 180, 110));
+        nextButton.setBackground(new Color(42, 183, 165));
         nextButton.setForeground(Color.WHITE);
         nextButton.setFocusPainted(false);
-        nextButton.setBorderPainted(false);
+        nextButton.setBorder(BorderFactory.createEmptyBorder(12, 22, 12, 22));
         nextButton.addActionListener(e -> nextQuestion());
         bottomPanel.add(nextButton, BorderLayout.EAST);
         this.add(bottomPanel, BorderLayout.SOUTH);
@@ -198,8 +203,12 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
     // -------------------------
     @Override
     protected void paintComponent(Graphics g) {
-        super.paintComponent(g);
-        // background color is set on the panel; no custom painting required
+        Graphics2D g2 = (Graphics2D) g.create();
+        g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
+        GradientPaint background = new GradientPaint(0, 0, new Color(11, 20, 52), 0, getHeight(), new Color(21, 39, 75));
+        g2.setPaint(background);
+        g2.fillRect(0, 0, getWidth(), getHeight());
+        g2.dispose();
     }
 
     // -------------------------
@@ -213,6 +222,7 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
         for (int i = 0; i < 4; i++) {
             optionButtons[i].setText(q[1 + i]);
             optionButtons[i].setEnabled(true);
+            resetOptionButton(optionButtons[i]);
         }
         answered = false;
         timerRemaining = timerSeconds;
@@ -297,6 +307,9 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
             statusLabel.setForeground(new Color(180, 20, 20));
         }
 
+        // highlight correct/wrong buttons
+        highlightAnswerButtons(selectedIndex, correctIndex);
+
         // auto-advance after a short delay
         if (advanceTimer.isRunning()) advanceTimer.stop();
         advanceTimer.start();
@@ -331,6 +344,28 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
     void receiveFromServer(String msg) {
         // TODO: handle incoming messages such as QUESTION, RESULT, OPPONENT_ANSWER
         // Example: parse and update opponent score or trigger nextQuestion
+    }
+
+    void resetOptionButton(javax.swing.JButton button) {
+        button.setBackground(new Color(14, 115, 204));
+        button.setForeground(Color.WHITE);
+        button.setOpaque(true);
+        button.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+    }
+
+    void highlightAnswerButtons(int selectedIndex, int correctIndex) {
+        for (int i = 0; i < optionButtons.length; i++) {
+            if (i == correctIndex) {
+                optionButtons[i].setBackground(new Color(16, 160, 70));
+                optionButtons[i].setForeground(Color.WHITE);
+            } else if (i == selectedIndex && selectedIndex != correctIndex) {
+                optionButtons[i].setBackground(new Color(210, 70, 70));
+                optionButtons[i].setForeground(Color.WHITE);
+            } else {
+                optionButtons[i].setBackground(new Color(80, 95, 130));
+                optionButtons[i].setForeground(Color.WHITE);
+            }
+        }
     }
 
     // -------------------------
