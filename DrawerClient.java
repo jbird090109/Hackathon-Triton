@@ -27,7 +27,7 @@ public class DrawerClient extends JPanel implements ActionListener, MouseListene
 
     private final List<Point> points = new ArrayList<>();
     private boolean drawing = false;
-    private boolean drawingEnabled = false;
+    private boolean drawingEnabled = true;
     private int timer = 30;
     private long lastSecond = System.currentTimeMillis();
 
@@ -42,7 +42,7 @@ public class DrawerClient extends JPanel implements ActionListener, MouseListene
     private BufferedReader in;
 
     public DrawerClient(String host, int port) {
-        connectToServer(host, port);
+        //connectToServer(host, port);
 
         JFrame frame = new JFrame("Drawer Client");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -95,6 +95,7 @@ public class DrawerClient extends JPanel implements ActionListener, MouseListene
         g.setColor(Color.BLACK);
         for (Point p : points) {
             g.fillOval(p.x, p.y, 8, 8);
+            //System.out.println("drawing point at " + p.x + ", " + p.y);
         }
 
         g.setColor(Color.RED);
@@ -115,6 +116,9 @@ public class DrawerClient extends JPanel implements ActionListener, MouseListene
 
     @Override
     public void actionPerformed(ActionEvent e) {
+
+
+
         if (drawingEnabled) {
             if (System.currentTimeMillis() - lastSecond >= 1000) {
                 timer--;
@@ -131,15 +135,20 @@ public class DrawerClient extends JPanel implements ActionListener, MouseListene
     @Override
     public void mousePressed(MouseEvent e) {
         Point click = e.getPoint();
+System.out.println("Mouse pressed at " + click.x + ", " + click.y);
+//System.out.println(drawingEnabled);
+
 
         if (clearButton.contains(click)) {
             points.clear();
+            System.out.println("Let me be perfectly clear");
             sendMessage("CLEAR");
         } else if (submitButton.contains(click)) {
             drawingEnabled = false;
             sendMessage("SUBMIT");
             statusMessage = "Submitted drawing, waiting for judge";
         } else if (drawingEnabled && click.x >= 40 && click.x <= 1040 && click.y >= 200 && click.y <= 700) {
+            //System.out.println("yeah");
             drawing = true;
         }
     }
@@ -151,7 +160,7 @@ public class DrawerClient extends JPanel implements ActionListener, MouseListene
 
     @Override
     public void mouseDragged(MouseEvent e) {
-        if (drawing && drawingEnabled) {
+        if (drawing && drawingEnabled && e.getX() >= 40 && e.getX() <= 1040 && e.getY() >= 200 && e.getY() <= 700) {
             Point p = new Point(e.getX(), e.getY());
             points.add(p);
             sendMessage("DRAW:" + p.x + "," + p.y);
