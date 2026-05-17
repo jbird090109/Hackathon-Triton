@@ -126,6 +126,7 @@ function App() {
             opponentName={matchData.opponentName}
             gameName={matchData.gameName}
             gameId={matchData.gameId}
+            matchData={matchData}
             onGameEnd={handleGameEnd}
           />
         ) : null;

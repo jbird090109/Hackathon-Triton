@@ -8,7 +8,7 @@ class SocketService {
 
   connect(
     serverUrl = typeof window !== 'undefined'
-      ? `${window.location.protocol}//${window.location.hostname}:5000`
+      ? `${window.location.protocol}//${window.location.host}`
       : 'http://localhost:5000'
   ) {
     this.socket = io(serverUrl, {
@@ -85,6 +85,22 @@ class SocketService {
 
   sendJudgeVote(vote) {
     this.emit('judge-vote', vote);
+  }
+
+  joinMatch(matchId) {
+    this.emit('join-match', { matchId });
+  }
+
+  sendOffer(matchId, offer) {
+    this.emit('webrtc-offer', { matchId, offer });
+  }
+
+  sendAnswer(matchId, answer) {
+    this.emit('webrtc-answer', { matchId, answer });
+  }
+
+  sendIceCandidate(matchId, candidate) {
+    this.emit('webrtc-ice-candidate', { matchId, candidate });
   }
 
   getSocket() {

@@ -198,6 +198,30 @@ io.on('connection', (socket) => {
     io.emit('game-update', data);
   });
 
+  socket.on('join-match', async ({ matchId }) => {
+    socket.join(matchId);
+    console.log(`Socket ${socket.id} joined match room ${matchId}`);
+    const clients = await io.in(matchId).allSockets();
+    if (clients.size === 2) {
+      io.to(matchId).emit('match-ready', { matchId });
+    }
+  });
+
+  socket.on('webrtc-offer', ({ matchId, offer }) => {
+    console.log(`WebRTC offer for match ${matchId} from ${socket.id}`);
+    socket.to(matchId).emit('webrtc-offer', { offer });
+  });
+
+  socket.on('webrtc-answer', ({ matchId, answer }) => {
+    console.log(`WebRTC answer for match ${matchId} from ${socket.id}`);
+    socket.to(matchId).emit('webrtc-answer', { answer });
+  });
+
+  socket.on('webrtc-ice-candidate', ({ matchId, candidate }) => {
+    console.log(`WebRTC ICE candidate for match ${matchId} from ${socket.id}`);
+    socket.to(matchId).emit('webrtc-ice-candidate', { candidate });
+  });
+
   socket.on('game-result', (data) => {
     console.log('Game result:', data);
     // Notify all connected players/judges of the result
