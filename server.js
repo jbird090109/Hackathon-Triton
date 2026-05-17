@@ -25,8 +25,6 @@ const gameQueues = {
   trivia: [],
 };
 
-// Judges removed: only player queues are used
-
 const activeMatches = new Map();
 const playerSockets = new Map();
 
@@ -372,8 +370,6 @@ io.on('connection', (socket) => {
   socket.on('game-result', (data) => {
     io.emit('game-ended', data);
   });
-
-  // judge-vote removed — results are delivered by players or game logic
 
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);

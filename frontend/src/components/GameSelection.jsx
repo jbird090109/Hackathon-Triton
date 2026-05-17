@@ -4,37 +4,31 @@ const GAMES = [
   {
     id: 'physical',
     name: 'Physical Game',
-    icon: '💪',
     description: 'Compete in physical challenges',
   },
   {
     id: 'acting',
     name: 'Acting Game',
-    icon: '🎭',
     description: 'Show your acting skills',
   },
   {
     id: 'dance',
     name: 'Dance Battle',
-    icon: '💃',
     description: 'Show off your dance moves',
   },
   {
     id: 'typing',
     name: 'Tug of War Typing',
-    icon: '⌨️',
     description: 'Type your way to victory',
   },
   {
     id: 'drawing',
     name: 'Drawing Game',
-    icon: '🎨',
     description: 'Draw and guess',
   },
   {
     id: 'trivia',
     name: 'Trivia',
-    icon: '🧠',
     description: 'Answer questions to win',
   },
 ];
@@ -60,7 +54,6 @@ export default function GameSelection({ playerName, onGameSelect, onBack }) {
       <div className="game-grid">
             {GAMES.map((game) => (
           <div key={game.id} className="game-card">
-            <div className="game-icon">{game.icon}</div>
             <h3>{game.name}</h3>
             <p>{game.description}</p>
             <button

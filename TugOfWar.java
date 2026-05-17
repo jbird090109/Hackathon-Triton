@@ -10,19 +10,17 @@ public class TugOfWar{
 	private Image forward, backward, left, right; 	
 	private AffineTransform tx;
 	
-	int dir = 0; 					//0-forward, 1-backward, 2-left, 3-right
+	int dir = 0;
 	int width, height;
-	int x, y;						//position of the object
-	int vx, vy;						//movement variables
-	double scaleWidth = 2;		//change to scale image
-	double scaleHeight = 2; 		//change to scale image
+	int x, y;
+	int vx, vy;
+	double scaleWidth = 2;
+	double scaleHeight = 2;
 	Rectangle hitbox;
 	
 	
 	public TugOfWar() {
-		forward = getImage("/imgs/" + "Rope.png"); //load the image for Tree
-
-		//alter these
+		forward = getImage("/imgs/" + "Rope.png");
 
 		x = 0;
 		y = 0;
@@ -32,8 +30,7 @@ public class TugOfWar{
 		height= 120;
 		tx = AffineTransform.getTranslateInstance(0, 0);
 		
-		init(x, y); 				//initialize the location of the images
-									//use your variables
+		init(x, y);
 	}
 	
 	public TugOfWar(int x, int y) {
@@ -62,9 +59,8 @@ public class TugOfWar{
 	}
 
 	public void paint(Graphics g) {
-		//these are the 2 lines of code needed draw an image on the screen
 		Graphics2D g2 = (Graphics2D) g;
-		
+
 		x+=vx;
 		y+=vy;	
 		hitbox.setFrame((x+scaleWidth*0.5*35),y, width *scaleWidth*0.5, height *scaleHeight*0.5);

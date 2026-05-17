@@ -14,18 +14,15 @@ function App() {
   const [matchData, setMatchData] = useState(null);
   const [gameResult, setGameResult] = useState(null);
 
-  // Initialize socket connection on mount
   useEffect(() => {
     socketService.connect();
 
-    // Listen for match found events
     socketService.on('match-found', (data) => {
       console.log('Match found:', data);
       setMatchData(data);
       setAppState('game-room');
     });
 
-    // Listen for game results
     socketService.on('game-ended', (result) => {
       console.log('Game ended:', result);
       const localWinner = result.winnerName === playerName ? 'You' : result.winnerName;
@@ -45,33 +42,27 @@ function App() {
     };
   }, []);
 
-  // Handle Welcome Screen - Player enters name
   const handleWelcomeStart = (name) => {
     setPlayerName(name);
     setAppState('game-selection');
   };
 
-  // Handle Game Selection - Player chooses game
   const handleGameSelect = ({ gameId, gameName }) => {
     setSelectedGame({ gameId, gameName });
     setAppState('waiting');
 
-    // Join the matchmaking queue
     socketService.joinQueue(playerName, gameId);
   };
 
-  // Handle Back from Game Selection
   const handleBackFromSelection = () => {
     setAppState('welcome');
   };
 
-  // Handle Cancel Matchmaking
   const handleCancelMatchmaking = () => {
     socketService.leaveQueue();
     setAppState('game-selection');
   };
 
-  // Handle Game End
   const handleGameEnd = () => {
     socketService.leaveQueue();
     setAppState('welcome');
@@ -80,14 +71,12 @@ function App() {
     setMatchData(null);
   };
 
-  // Handle Play Again
   const handlePlayAgain = () => {
     setAppState('game-selection');
     setGameResult(null);
     setMatchData(null);
   };
 
-  // Render based on app state
   const renderState = () => {
     switch (appState) {
       case 'welcome':

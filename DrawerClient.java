@@ -42,8 +42,6 @@ public class DrawerClient extends JPanel implements ActionListener, MouseListene
     private BufferedReader in;
 
     public DrawerClient(String host, int port) {
-        //connectToServer(host, port);
-
         JFrame frame = new JFrame("Drawer Client");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(new Dimension(WIDTH, HEIGHT));

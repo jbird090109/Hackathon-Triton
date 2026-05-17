@@ -27,9 +27,6 @@ import javax.swing.Timer;
 
 public class Trivia extends JPanel implements ActionListener, MouseListener {
 
-    // -------------------------
-    // Step 1: State & config
-    // -------------------------
     int width = 1280;                 // window width
     int height = 800;                 // window height
     Font titleFont = new Font("Segoe UI Semibold", Font.BOLD, 32);
@@ -37,8 +34,7 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
     Font buttonFont = new Font("Segoe UI", Font.BOLD, 20);
     Font statusFont = new Font("Segoe UI", Font.PLAIN, 16);
 
-        // Step 1.1: Questions array (prompt, 4 options, correct letter A-D)
-        String[][] questions = new String[][] {
+    String[][] questions = new String[][] {
             {"What planet is known as the Red Planet?", "Earth", "Mars", "Venus", "Jupiter", "B"},
             {"What gas do plants absorb from the atmosphere?", "Oxygen", "Hydrogen", "Carbon Dioxide", "Nitrogen", "C"},
             {"What is the chemical symbol for gold?", "Ag", "Au", "Fe", "Go", "B"},
@@ -62,15 +58,15 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
             {"What color do you get when you mix red and blue?", "Green", "Purple", "Orange", "Yellow", "B"}
         };
 
-        int currentQuestion = 0;          // actual question index in 'questions' array
-    int timerSeconds = 15;            // time per question
+        int currentQuestion = 0;
+    int timerSeconds = 15;
     int timerRemaining = timerSeconds;
     javax.swing.Timer roundTimer;
 
         // question ordering (shuffled)
-        List<Integer> questionOrder = new ArrayList<>();
-        int questionPointer = 0; // position in questionOrder
-        Random rand = new Random();
+    List<Integer> questionOrder = new ArrayList<>();
+    int questionPointer = 0;
+    Random rand = new Random();
 
     // UI components (Step 1.2)
     javax.swing.JButton[] optionButtons = new javax.swing.JButton[4];
@@ -82,33 +78,24 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
     javax.swing.JLabel myScoreLabel;
     javax.swing.JLabel oppScoreLabel;
     javax.swing.JLabel statusLabel;
-    javax.swing.Timer advanceTimer; // short delay before next question
+    javax.swing.Timer advanceTimer;
 
-    // Player state (local client view) (Step 1.3)
     int myScore = 0;
-    int opponentScore = 0; // placeholder for two-player flow
-    boolean answered = false; // whether this player has answered current question
+    int opponentScore = 0;
+    boolean answered = false;
     String statusMessage = "Waiting to start...";
 
-    // -------------------------
-    // Step 2: Constructor - build UI
-    // -------------------------
-    public Trivia() {
-        // create window and add this panel
         JFrame frame = new JFrame("Two-Player Trivia");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setSize(new Dimension(width, height));
         frame.setResizable(false);
         frame.setLocationRelativeTo(null);
 
-        // Step 2.1: configure this panel with BorderLayout
         this.setLayout(new BorderLayout(10, 10));
         frame.add(this);
 
-        // allow gradient background to show through
         this.setOpaque(false);
 
-        // Top panel: title, timer, scores
         JPanel topPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 10));
         topPanel.setBackground(new Color(18, 32, 70));
         topPanel.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
@@ -182,25 +169,19 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
         bottomPanel.add(nextButton, BorderLayout.EAST);
         this.add(bottomPanel, BorderLayout.SOUTH);
 
-        // Step 2.4: create the per-question timer and short advance timer
         roundTimer = new javax.swing.Timer(1000, e -> timerTick());
         advanceTimer = new javax.swing.Timer(1500, e -> {
             ((javax.swing.Timer)e.getSource()).stop();
             nextQuestion();
         });
 
-        // Step 2.5: show window
         frame.setVisible(true);
 
-        // Step 2.6: initialize and shuffle question order, then start first question
         initQuestionOrder();
         questionPointer = 0;
         startQuestion(questionOrder.get(questionPointer));
     }
 
-    // -------------------------
-    // Step 3: Paint UI (question, timer, scores)
-    // -------------------------
     @Override
     protected void paintComponent(Graphics g) {
         Graphics2D g2 = (Graphics2D) g.create();
@@ -211,13 +192,8 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
         g2.dispose();
     }
 
-    // -------------------------
-    // Step 4: Timer & question lifecycle
-    // -------------------------
     void startQuestion(int index) {
-        // record which actual question we're showing (index into questions[])
         currentQuestion = index;
-        // Step 4.1: load question text into option buttons
         String[] q = questions[index];
         for (int i = 0; i < 4; i++) {
             optionButtons[i].setText(q[1 + i]);
@@ -227,7 +203,6 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
         answered = false;
         timerRemaining = timerSeconds;
         statusMessage = "Answer the question";
-        // update labels
         questionLabel.setText("Q: " + q[0]);
         timerLabel.setText("Time: " + timerRemaining + "s");
         questionCounterLabel.setText("Question: " + (questionPointer + 1) + " / " + questions.length);
@@ -250,7 +225,6 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
         timerRemaining--;
         if (timerRemaining <= 0) {
             roundTimer.stop();
-            // treat as no answer
             onPlayerAnswer(-1);
         }
         timerLabel.setText("Time: " + timerRemaining + "s");
@@ -281,7 +255,6 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
     }
 
     void onPlayerAnswer(int selectedIndex) {
-        // Step 5.1: local evaluation (in a real two-player game this is done on the server)
         String correctLetter = questions[currentQuestion][5];
         int correctIndex = Character.toUpperCase(correctLetter.charAt(0)) - 'A';
         if (selectedIndex == correctIndex) {
@@ -293,10 +266,6 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
             statusMessage = "Wrong answer. Correct: " + (char)('A' + correctIndex);
         }
 
-        // Step 5.2: placeholder - send answer to server here
-        // sendToServer("ANSWER:" + selectedIndex);
-
-        // update labels
         statusLabel.setText(statusMessage);
         myScoreLabel.setText("You: " + myScore);
         oppScoreLabel.setText("Opponent: " + opponentScore);
@@ -307,17 +276,12 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
             statusLabel.setForeground(new Color(180, 20, 20));
         }
 
-        // highlight correct/wrong buttons
         highlightAnswerButtons(selectedIndex, correctIndex);
 
-        // auto-advance after a short delay
         if (advanceTimer.isRunning()) advanceTimer.stop();
         advanceTimer.start();
     }
 
-    // -------------------------
-    // Step 6: Next question (advance local prototype)
-    // -------------------------
     void nextQuestion() {
         questionPointer++;
         if (questionPointer >= questionOrder.size()) {
@@ -331,19 +295,11 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
         startQuestion(questionOrder.get(questionPointer));
     }
 
-    // -------------------------
-    // Step 7: Networking placeholders
-    // -------------------------
-    // In a real implementation you would open a Socket and send/receive simple
-    // text messages. Example placeholder methods are shown below.
     void sendToServer(String msg) {
-        // TODO: implement socket send
         System.out.println("[to server] " + msg);
     }
 
     void receiveFromServer(String msg) {
-        // TODO: handle incoming messages such as QUESTION, RESULT, OPPONENT_ANSWER
-        // Example: parse and update opponent score or trigger nextQuestion
     }
 
     void resetOptionButton(javax.swing.JButton button) {
@@ -368,12 +324,8 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
         }
     }
 
-    // -------------------------
-    // Required listener methods
-    // -------------------------
     @Override
     public void actionPerformed(ActionEvent e) {
-        // not used (we use specific listeners and the roundTimer)
     }
 
     @Override
@@ -391,11 +343,7 @@ public class Trivia extends JPanel implements ActionListener, MouseListener {
     @Override
     public void mouseReleased(MouseEvent e) {}
 
-    // -------------------------
-    // Step 8: Launcher
-    // -------------------------
     public static void main(String[] args) {
-        // Start the local prototype client. In production this would connect to server.
         javax.swing.SwingUtilities.invokeLater(() -> new Trivia());
     }
 }                                                           

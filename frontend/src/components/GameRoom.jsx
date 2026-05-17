@@ -47,7 +47,6 @@ export default function GameRoom({
   console.log("🔌 socket connected:", socketService?.socket?.connected);
   console.log("🔌 socket id:", socketService?.socket?.id);
 
-  // IMPORTANT: ensure only one PC exists
   if (pcRef.current) {
     pcRef.current.close();
     pcRef.current = null;
@@ -56,16 +55,12 @@ export default function GameRoom({
   const pc = new RTCPeerConnection({
     iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
   });
-  console.log("🧠 PeerConnection CREATED");
 
   pcRef.current = pc;
 
   const pendingCandidates = [];
   let hasRemoteOffer = false;
 
-  // -------------------
-  // TRACK HANDLING
-  // -------------------
   pc.ontrack = (event) => {
     console.log("🎥 TRACK EVENT FIRED");
     console.log("🎥 Streams:", event.streams);
@@ -86,22 +81,11 @@ export default function GameRoom({
     }
   };
 
-  // -------------------
-  // STATE LOGGING
-  // -------------------
-  pc.oniceconnectionstatechange = () => {
-    console.log("🧊 ICE STATE:", pc.iceConnectionState);
-    setConnectionState(pc.iceConnectionState || 'new');
-  };
-
   pc.onconnectionstatechange = () => {
     console.log("🔗 CONNECTION STATE:", pc.connectionState);
     setConnectionState(pc.connectionState || 'new');
   };
 
-  // -------------------
-  // ICE SEND
-  // -------------------
   pc.onicecandidate = (event) => {
     if (!event.candidate) return;
 
@@ -112,9 +96,6 @@ export default function GameRoom({
     });
   };
 
-  // -------------------
-  // LOCAL STREAM
-  // -------------------
   const startLocalStream = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -143,9 +124,6 @@ export default function GameRoom({
     }
   };
 
-  // -------------------
-  // CREATE OFFER (FIXED)
-  // -------------------
   const createOffer = async () => {
     console.log("📤 Creating offer...");
     if (pc.signalingState !== 'stable') return;
@@ -158,15 +136,12 @@ export default function GameRoom({
     socketService.sendOffer(matchData.matchId, offer);
   };
 
-  // -------------------
-  // HANDLE OFFER (FIXED STATE GUARD)
-  // -------------------
   const handleOffer = async ({ offer }) => {
     try {
       console.log("📩 Handling offer...");
       await startLocalStream();
 
-      // 🔥 CRITICAL FIX: prevent wrong-state crash
+      
       console.log("📩 Current signaling state:", pc.signalingState);
       if (pc.signalingState !== 'stable' && pc.signalingState !== 'have-local-offer') {
         console.log("Ignoring offer due to bad state:", pc.signalingState);
@@ -174,16 +149,13 @@ export default function GameRoom({
       }
 
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      console.log("📩 Remote description set (offer accepted)");
       hasRemoteOffer = true;
 
       const answer = await pc.createAnswer();
-      console.log("📤 Answer created");
       await pc.setLocalDescription(answer);
 
       socketService.sendAnswer(matchData.matchId, answer);
 
-      // flush ICE
       for (const c of pendingCandidates) {
         await pc.addIceCandidate(c);
       }
@@ -194,9 +166,6 @@ export default function GameRoom({
     }
   };
 
-  // -------------------
-  // HANDLE ANSWER (FIXED GUARD)
-  // -------------------
   const handleAnswer = async ({ answer }) => {
     try {
       if (pc.signalingState !== 'have-local-offer') {
@@ -216,9 +185,6 @@ export default function GameRoom({
     }
   };
 
-  // -------------------
-  // ICE HANDLER (SAFE QUEUE)
-  // -------------------
   const handleIceCandidate = async ({ candidate }) => {
     try {
       if (!candidate?.candidate) return;
