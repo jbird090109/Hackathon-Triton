@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import '../styles/JudgeView.css';
+import socketService from '../services/socketService';
 
 export default function JudgeView({
   gameName,
   player1Name,
   player2Name,
+  matchId,
   onVoteSubmitted,
   onLeaveGame,
 }) {
@@ -34,6 +36,7 @@ export default function JudgeView({
   const handleVote = (winner) => {
     setVoted(winner);
     onVoteSubmitted({
+      matchId,
       winner,
       votedAt: Date.now(),
       gameName,
@@ -41,6 +44,11 @@ export default function JudgeView({
       player2: player2Name,
     });
   };
+
+  useEffect(() => {
+    if (!matchId) return;
+    socketService.joinMatch(matchId);
+  }, [matchId]);
 
   const handleLeaveGame = () => {
     setGameActive(false);

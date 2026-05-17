@@ -36,6 +36,7 @@ function App() {
         ...result,
         winner: localWinner,
         loser: localLoser,
+        judgeVote: result.judgeVote,
       });
       setAppState('results');
     });
@@ -45,6 +46,11 @@ function App() {
       console.log('Judge match found:', data);
       setMatchData(data);
       setAppState('judge-view');
+    });
+
+    socketService.on('judge-assigned', (data) => {
+      console.log('Judge assigned:', data);
+      setMatchData((prev) => (prev ? { ...prev, judgeName: data.judgeName } : prev));
     });
 
     return () => {
@@ -140,6 +146,7 @@ function App() {
       case 'judge-view':
         return matchData ? (
           <JudgeView
+            matchId={matchData.matchId}
             gameName={matchData.gameName}
             player1Name={matchData.player1Name}
             player2Name={matchData.player2Name}

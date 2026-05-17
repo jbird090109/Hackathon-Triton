@@ -46,11 +46,11 @@ const GAMES = [
 ];
 
 export default function GameSelection({ playerName, onGameSelect, onBack }) {
-  const handleSelectGame = (game) => {
+  const handleSelectGame = (game, isJudge) => {
     onGameSelect({
       gameId: game.id,
       gameName: game.name,
-      isJudge: false,
+      isJudge,
     });
   };
 
@@ -66,15 +66,35 @@ export default function GameSelection({ playerName, onGameSelect, onBack }) {
 
       <div className="game-grid">
         {GAMES.map((game) => (
-          <div
-            key={game.id}
-            className="game-card"
-            onClick={() => handleSelectGame(game)}
-          >
+          <div key={game.id} className="game-card">
             <div className="game-icon">{game.icon}</div>
             <h3>{game.name}</h3>
             <p>{game.description}</p>
-            <p className="join-hint">Click to join and connect</p>
+
+            {game.hasJudge ? (
+              <div className="selection-buttons">
+                <button
+                  className="confirm-button"
+                  onClick={() => handleSelectGame(game, false)}
+                >
+                  Join as Player
+                </button>
+                <button
+                  className="cancel-button"
+                  onClick={() => handleSelectGame(game, true)}
+                >
+                  Join as Judge
+                </button>
+              </div>
+            ) : (
+              <button
+                className="confirm-button"
+                onClick={() => handleSelectGame(game, false)}
+              >
+                Join Game
+              </button>
+            )}
+
             {game.hasJudge && (
               <span className="judge-badge">👨‍⚖️ Judge Available</span>
             )}

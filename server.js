@@ -345,8 +345,10 @@ io.on('connection', (socket) => {
     console.log(`Socket ${socket.id} joined match room ${matchId}`);
 
     const clients = await io.in(matchId).allSockets();
+    const requiresJudge = match.judge || match.status === 'waiting-for-judge';
+    const requiredClients = requiresJudge ? 3 : 2;
 
-    if (clients.size >= 2) {
+    if (clients.size >= requiredClients) {
       io.to(matchId).emit('match-ready', { matchId });
 
       if (match.gameId === 'trivia' && !match.trivia?.started) {
@@ -426,7 +428,26 @@ io.on('connection', (socket) => {
   });
 
   socket.on('judge-vote', (vote) => {
-    io.emit('judge-voted', vote);
+    const { matchId, winner, gameName } = vote;
+    const match = activeMatches.get(matchId);
+    if (!match) return;
+
+    let loserName = 'Opponent';
+    if (match.player1.name === winner) {
+      loserName = match.player2.name;
+    } else if (match.player2.name === winner) {
+      loserName = match.player1.name;
+    }
+
+    io.to(matchId).emit('game-ended', {
+      winnerName: winner,
+      loserName,
+      gameName,
+      judgeVote: `Judge chose ${winner}`,
+      matchId,
+    });
+
+    activeMatches.delete(matchId);
   });
 
   socket.on('disconnect', () => {

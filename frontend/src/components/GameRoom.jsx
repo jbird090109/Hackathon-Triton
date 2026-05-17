@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import '../styles/GameRoom.css';
 import socketService from '../services/socketService';
 import TriviaGame from './TriviaGame';
+import PhysicalGame from './PhysicalGame';
+import ActingGame from './ActingGame';
 
 export default function GameRoom({
   playerName,
@@ -348,6 +350,12 @@ useEffect(() => {
           <h2>{gameName}</h2>
           <p className="time-display">⏱️ {formatTime(elapsedTime)}</p>
         </div>
+        {matchData?.judgeName && (
+          <div className="judge-announcement">
+            <span>👨‍⚖️ Judge:</span>
+            <strong>{matchData.judgeName}</strong>
+          </div>
+        )}
       </div>
 
       <div className="video-grid">
@@ -403,6 +411,18 @@ useEffect(() => {
         <div className="game-content">
           {gameId === 'trivia' ? (
             <TriviaGame
+              matchId={matchData?.matchId}
+              playerName={playerName}
+              opponentName={opponentName}
+            />
+          ) : gameId === 'physical' ? (
+            <PhysicalGame
+              matchId={matchData?.matchId}
+              playerName={playerName}
+              opponentName={opponentName}
+            />
+          ) : gameId === 'acting' ? (
+            <ActingGame
               matchId={matchData?.matchId}
               playerName={playerName}
               opponentName={opponentName}
