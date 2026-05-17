@@ -31,79 +31,69 @@ export default function GameRoom({
 
     isMountedRef.current = true;
 
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }],
-    });
+    let pc;
+    const pendingCandidates = [];
 
-    pcRef.current = pc;
+    const setup = async () => {
+      pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: "stun:stun.l.google.com:19302" }
+        ],
+      });
 
-    pc.ontrack = (event) => {
-      if (remoteVideoRef.current && event.streams?.[0]) {
-        remoteVideoRef.current.srcObject = event.streams[0];
-        setRemoteCameraActive(true);
-      }
-    };
+      pcRef.current = pc;
 
-    pc.oniceconnectionstatechange = () => {
-      setConnectionState(pc.iceConnectionState || 'new');
-    };
+      console.log("PC CREATED");
 
-    pc.onconnectionstatechange = () => {
-      setConnectionState(pc.connectionState || 'new');
-    };
+      pc.ontrack = (event) => {
+        console.log("TRACK RECEIVED");
 
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        socketService.sendIceCandidate(matchData.matchId, {
-          candidate: event.candidate.candidate,
-          sdpMLineIndex: event.candidate.sdpMLineIndex,
-          sdpMid: event.candidate.sdpMid,
-        });
-      }
-    };
+        if (remoteVideoRef.current && event.streams?.[0]) {
+          remoteVideoRef.current.srcObject = event.streams[0];
 
-    const startLocalStream = async () => {
-      try {
-        if (!isMountedRef.current || pc.signalingState === 'closed') return null;
+          remoteVideoRef.current.play().catch(() => {
+            console.log("Autoplay blocked");
+          });
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
-
-        if (!isMountedRef.current || pc.signalingState === 'closed') {
-          stream.getTracks().forEach((track) => track.stop());
-          return null;
+          setRemoteCameraActive(true);
         }
+      };
 
-        localStreamRef.current = stream;
-        setCameraError(null);
-        setLocalCameraActive(true);
+      pc.oniceconnectionstatechange = () => {
+        console.log("ICE STATE:", pc.iceConnectionState);
+        setConnectionState(pc.iceConnectionState);
+      };
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          console.log("SENDING ICE");
+
+          socketService.sendIceCandidate(matchData.matchId, {
+            candidate: event.candidate.candidate,
+            sdpMLineIndex: event.candidate.sdpMLineIndex,
+            sdpMid: event.candidate.sdpMid,
+          });
         }
+      };
 
-        stream.getTracks().forEach((track) => {
-          pc.addTrack(track, stream);
-        });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
 
-        return stream;
-      } catch (err) {
-        console.error('Camera/Microphone error:', err);
-        setCameraError('Camera unavailable or permission denied');
-        setLocalCameraActive(false);
-        return null;
-      }
-    };
+      localStreamRef.current = stream;
+      videoRef.current.srcObject = stream;
 
-    const createOffer = async () => {
-      try {
-        if (!localStreamRef.current) {
-          await startLocalStream();
-        }
+      setLocalCameraActive(true);
 
-        if (pc.signalingState === 'closed') return;
+      stream.getTracks().forEach(track => {
+        pc.addTrack(track, stream);
+      });
+
+      console.log("LOCAL STREAM READY");
+
+      const createOffer = async () => {
+        console.log("CREATING OFFER");
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
@@ -112,28 +102,16 @@ export default function GameRoom({
           type: offer.type,
           sdp: offer.sdp,
         });
-      } catch (err) {
-        console.error('Failed to create offer:', err);
-      }
-    };
 
-    const handleMatchReady = async () => {
-      if (matchData.isPlayer1) {
-        await createOffer();
-      }
-    };
+        console.log("OFFER SENT");
+      };
 
-    const handleOffer = async ({ offer }) => {
-      try {
-        if (!localStreamRef.current) {
-          await startLocalStream();
-        }
-
-        if (pc.signalingState === 'closed') return;
+      const handleOffer = async ({ offer }) => {
+        console.log("OFFER RECEIVED");
 
         await pc.setRemoteDescription(
           new RTCSessionDescription({
-            type: 'offer',
+            type: "offer",
             sdp: offer.sdp,
           })
         );
@@ -145,73 +123,77 @@ export default function GameRoom({
           type: answer.type,
           sdp: answer.sdp,
         });
-      } catch (err) {
-        console.error('Failed to handle offer:', err);
-      }
-    };
 
-    const handleAnswer = async ({ answer }) => {
-      try {
-        if (pc.signalingState === 'closed') return;
+        console.log("ANSWER SENT");
+
+        for (const c of pendingCandidates) {
+          await pc.addIceCandidate(c);
+        }
+        pendingCandidates.length = 0;
+      };
+
+      const handleAnswer = async ({ answer }) => {
+        console.log("ANSWER RECEIVED");
 
         await pc.setRemoteDescription(
           new RTCSessionDescription({
-            type: 'answer',
+            type: "answer",
             sdp: answer.sdp,
           })
         );
-      } catch (err) {
-        console.error('Failed to handle answer:', err);
-      }
-    };
 
-    const handleIceCandidate = async ({ candidate }) => {
-      try {
-        if (!candidate?.candidate || pc.signalingState === 'closed') return;
+        for (const c of pendingCandidates) {
+          await pc.addIceCandidate(c);
+        }
+        pendingCandidates.length = 0;
+      };
 
-        await pc.addIceCandidate(
-          new RTCIceCandidate({
-            candidate: candidate.candidate,
-            sdpMLineIndex: candidate.sdpMLineIndex,
-            sdpMid: candidate.sdpMid,
-          })
-        );
-      } catch (err) {
-        console.error('Failed to add ICE candidate:', err);
-      }
-    };
+      const handleIce = async ({ candidate }) => {
+        if (!candidate?.candidate) return;
 
-    socketService.on('match-ready', handleMatchReady);
-    socketService.on('webrtc-offer', handleOffer);
-    socketService.on('webrtc-answer', handleAnswer);
-    socketService.on('webrtc-ice-candidate', handleIceCandidate);
+        const ice = new RTCIceCandidate({
+          candidate: candidate.candidate,
+          sdpMLineIndex: candidate.sdpMLineIndex,
+          sdpMid: candidate.sdpMid,
+        });
 
-    const setupConnection = async () => {
-      await startLocalStream();
+        console.log("ICE RECEIVED");
+
+        if (!pc.remoteDescription) {
+          pendingCandidates.push(ice);
+          return;
+        }
+
+        await pc.addIceCandidate(ice);
+      };
+
+      socketService.on("webrtc-offer", handleOffer);
+      socketService.on("webrtc-answer", handleAnswer);
+      socketService.on("webrtc-ice-candidate", handleIce);
+
       socketService.joinMatch(matchData.matchId);
+
+      if (matchData.isPlayer1) {
+        setTimeout(createOffer, 1000);
+      }
     };
 
-    setupConnection();
+    setup();
 
     return () => {
       isMountedRef.current = false;
-      setLocalCameraActive(false);
-      setRemoteCameraActive(false);
 
-      socketService.off('match-ready', handleMatchReady);
-      socketService.off('webrtc-offer', handleOffer);
-      socketService.off('webrtc-answer', handleAnswer);
-      socketService.off('webrtc-ice-candidate', handleIceCandidate);
-
-      if (pc.signalingState !== 'closed') {
-        pc.close();
-      }
+      if (pc) pc.close();
 
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((track) => track.stop());
+        localStreamRef.current.getTracks().forEach(t => t.stop());
       }
+
+      socketService.off("webrtc-offer");
+      socketService.off("webrtc-answer");
+      socketService.off("webrtc-ice-candidate");
     };
-  }, [matchData?.matchId, matchData?.isPlayer1, gameId]);
+  }, [matchData?.matchId]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -232,7 +214,7 @@ export default function GameRoom({
     setIsMuted(newMuted);
 
     if (localStreamRef.current) {
-      localStreamRef.current.getAudioTracks().forEach((track) => {
+      localStreamRef.current.getAudioTracks().forEach(track => {
         track.enabled = !newMuted;
       });
     }
@@ -243,7 +225,7 @@ export default function GameRoom({
     setIsVideoOff(newVideoOff);
 
     if (localStreamRef.current) {
-      localStreamRef.current.getVideoTracks().forEach((track) => {
+      localStreamRef.current.getVideoTracks().forEach(track => {
         track.enabled = !newVideoOff;
       });
     }
@@ -251,7 +233,7 @@ export default function GameRoom({
 
   const handleEndGame = () => {
     if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current.getTracks().forEach(track => track.stop());
     }
 
     onGameEnd();
@@ -260,103 +242,30 @@ export default function GameRoom({
   return (
     <div className="game-room-container">
       <div className="game-room-header">
-        <div className="game-title">
-          <h2>{gameName}</h2>
-          <p className="time-display">⏱️ {formatTime(elapsedTime)}</p>
-        </div>
+        <h2>{gameName}</h2>
+        <p>Connection: {connectionState}</p>
       </div>
 
       <div className="video-grid">
-        <div className="video-container local">
-          <video
-            ref={videoRef}
-            autoPlay
-            muted
-            playsInline
-            className={`video-feed ${isVideoOff ? 'video-off' : ''}`}
-          />
-
-          <div className="player-info">
-            <span className="player-name">You</span>
-            <span className="player-label">{playerName}</span>
-          </div>
-
-          {isVideoOff && <div className="video-off-overlay">📷 Camera Off</div>}
-          {!isVideoOff && !localCameraActive && !cameraError && (
-            <div className="video-off-overlay">📷 Waiting for your camera...</div>
-          )}
-          {cameraError && <div className="video-off-overlay">{cameraError}</div>}
-        </div>
-
-        <div className="video-container remote">
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            className="video-feed"
-            style={{ background: '#000' }}
-          />
-
-          <div className="player-info">
-            <span className="player-name">Opponent</span>
-            <span className="player-label">{opponentName}</span>
-          </div>
-
-          {!remoteCameraActive && (
-            <div className="video-off-overlay">🎥 Opponent camera not ready</div>
-          )}
-        </div>
-      </div>
-
-      <div className="connection-status">
-        <p>Connection: {connectionState}</p>
-        {(connectionState === 'new' || connectionState === 'connecting') && (
-          <p>Waiting for opponent to connect...</p>
-        )}
-      </div>
-
-      <div className="game-display-area">
-        <div className="game-content">
-          {gameId === 'trivia' ? (
-            <TriviaGame
-              matchId={matchData?.matchId}
-              playerName={playerName}
-              opponentName={opponentName}
-            />
-          ) : (
-            <div className="placeholder">
-              <p>Game State: {gameStatus}</p>
-              <p>Waiting for game data from server...</p>
-            </div>
-          )}
-        </div>
+        <video ref={videoRef} autoPlay muted playsInline />
+        <video ref={remoteVideoRef} autoPlay playsInline />
       </div>
 
       <div className="game-controls">
-        <button
-          onClick={toggleMute}
-          className={`control-btn ${isMuted ? 'active' : ''}`}
-          title={isMuted ? 'Unmute' : 'Mute'}
-        >
-          {isMuted ? '🔇' : '🔊'}
-        </button>
-
-        <button
-          onClick={toggleVideo}
-          className={`control-btn ${isVideoOff ? 'active' : ''}`}
-          title={isVideoOff ? 'Turn on camera' : 'Turn off camera'}
-        >
-          {isVideoOff ? '📷' : '📹'}
-        </button>
-
-        <button
-          onClick={handleEndGame}
-          className="control-btn end-btn"
-          title="End game"
-        >
-          ✕ Leave Game
-        </button>
+        <button onClick={toggleMute}>Mute</button>
+        <button onClick={toggleVideo}>Video</button>
+        <button onClick={handleEndGame}>Leave</button>
       </div>
+
+      {gameId === 'trivia' ? (
+        <TriviaGame
+          matchId={matchData?.matchId}
+          playerName={playerName}
+          opponentName={opponentName}
+        />
+      ) : (
+        <div>Waiting for game...</div>
+      )}
     </div>
   );
 }
