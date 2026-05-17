@@ -406,17 +406,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('webrtc-offer', ({ matchId, offer }) => {
-    console.log('[server] webrtc-offer from', socket.id, 'for match', matchId);
     socket.to(matchId).emit('webrtc-offer', { offer });
   });
 
   socket.on('webrtc-answer', ({ matchId, answer }) => {
-    console.log('[server] webrtc-answer from', socket.id, 'for match', matchId);
     socket.to(matchId).emit('webrtc-answer', { answer });
   });
 
   socket.on('webrtc-ice-candidate', ({ matchId, candidate }) => {
-    console.log('[server] webrtc-ice-candidate from', socket.id, 'for match', matchId, 'candidate=', candidate && candidate.candidate ? candidate.candidate.substring(0,40) : 'n/a');
     socket.to(matchId).emit('webrtc-ice-candidate', { candidate });
   });
 
